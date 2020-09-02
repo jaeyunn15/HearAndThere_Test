@@ -28,7 +28,7 @@ abstract class AudioGuideDatabase : RoomDatabase(){
                     INSTANCE = Room.databaseBuilder(
                         context.applicationContext,
                         AudioGuideDatabase::class.java,
-                        "audio_guide.db"
+                        "audio_guide2.db"
                     )
                         .fallbackToDestructiveMigration()
                         .build()

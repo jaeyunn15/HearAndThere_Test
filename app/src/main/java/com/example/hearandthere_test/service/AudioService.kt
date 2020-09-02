@@ -65,8 +65,8 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
     }
 
     private fun initMusicDatas(intent: Intent){
-        val musicDatas: java.util.ArrayList<ResAudioTrackInfoItemDto> = intent.getParcelableArrayListExtra(
-            MusicState.PARAM_MUSIC_LIST)
+        val musicDatas: java.util.ArrayList<ResAudioTrackInfoItemDto>
+                = intent.getParcelableArrayListExtra(MusicState.PARAM_MUSIC_LIST)
         audioList.addAll(musicDatas)
     }
 

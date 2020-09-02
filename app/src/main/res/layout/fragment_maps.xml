@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<layout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    >
 
     <com.naver.maps.map.MapView
         android:id="@+id/maps_frag_view"
@@ -11,17 +15,37 @@
         android:layout_height="match_parent"
         />
 
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/vp_mapfragment_audioInfo"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="70dp"
+        app:layout_insetEdge="bottom"
+        android:background="#303030"
+        />
+
+    <include
+        android:id="@+id/view_bottom_now_play"
+        layout="@layout/view_audio_nowplay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:layout_insetEdge="bottom"
+        />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_baseline_my_location_24"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="30dp"
-        app:fabSize="auto"
         android:backgroundTint="@color/white"
+        android:layout_margin="20dp"
+        app:layout_dodgeInsetEdges="bottom"
+        app:layout_anchor="@id/maps_frag_view"
+        app:layout_anchorGravity="bottom|end"
         />
 
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</layout>
