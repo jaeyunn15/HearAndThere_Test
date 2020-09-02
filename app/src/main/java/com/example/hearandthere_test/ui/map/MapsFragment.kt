@@ -1,23 +1,20 @@
 package com.example.hearandthere_test.ui.map
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.Color
-import android.graphics.PointF
-import android.location.Location
 import android.os.Bundle
-import android.os.Trace
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import androidx.swiperefreshlayout.widget.CircularProgressDrawable
 import com.example.hearandthere_test.R
+import com.example.hearandthere_test.ui.mapUtil.MapPermission
+import com.example.hearandthere_test.ui.mapUtil.MapState
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -27,9 +24,9 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
 import com.naver.maps.map.MapFragment
-import kotlinx.android.synthetic.main.fragment_maps.*
 
 class MapsFragment : Fragment(), OnMapReadyCallback {
+
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult?) {
             if (locationResult == null) {
@@ -40,7 +37,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             val locationOverlay = map.locationOverlay
             locationOverlay.position = coord
             locationOverlay.bearing = lastLocation.bearing
-            Log.d("현재 위치:" ,"${coord.latitude} || ${coord.longitude}")
             map.moveCamera(CameraUpdate.scrollTo(coord))
             if (waiting) {
                 waiting = false
@@ -55,7 +51,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     private var waiting: Boolean = false
     private lateinit var map: NaverMap
     private lateinit var fab : FloatingActionButton
-
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -77,7 +72,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        if (requestCode == PERMISSION_REQUEST_CODE) {
+        if (requestCode == MapState.PERMISSION_REQUEST_CODE) {
             if (grantResults.all { it == PermissionChecker.PERMISSION_GRANTED }) {
                 enableLocation()
             } else {
@@ -121,10 +116,10 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun tryEnableLocation() {
-        if (PERMISSIONS.all { ContextCompat.checkSelfPermission(requireContext(), it) == PermissionChecker.PERMISSION_GRANTED }) {
+        if (MapPermission.PERMISSIONS.all { ContextCompat.checkSelfPermission(requireContext(), it) == PermissionChecker.PERMISSION_GRANTED }) {
             enableLocation()
         } else {
-            ActivityCompat.requestPermissions(requireActivity(), PERMISSIONS, PERMISSION_REQUEST_CODE)
+            ActivityCompat.requestPermissions(requireActivity(), MapPermission.PERMISSIONS, MapState.PERMISSION_REQUEST_CODE)
         }
     }
 
@@ -135,8 +130,8 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 override fun onConnected(bundle: Bundle?) {
                     val locationRequest = LocationRequest().apply {
                         priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-                        interval = LOCATION_REQUEST_INTERVAL.toLong()
-                        fastestInterval = LOCATION_REQUEST_INTERVAL.toLong()
+                        interval = MapState.LOCATION_REQUEST_INTERVAL.toLong()
+                        fastestInterval = MapState.LOCATION_REQUEST_INTERVAL.toLong()
                     }
 
                     LocationServices.getFusedLocationProviderClient(requireContext())
@@ -170,13 +165,4 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             fab.setImageResource(R.drawable.ic_baseline_location_disabled_24)
         }
     }
-
-    companion object {
-        private const val LOCATION_REQUEST_INTERVAL = 500 //10초마다 알려줌
-        private const val PERMISSION_REQUEST_CODE = 100
-        private val PERMISSIONS = arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION)
-    }
-
 }
