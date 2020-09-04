@@ -10,8 +10,6 @@ import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.util.Log
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,27 +21,22 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import androidx.databinding.DataBindingUtil
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStore
+import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.CircularProgressDrawable
+import androidx.viewpager2.widget.CompositePageTransformer
+import androidx.viewpager2.widget.MarginPageTransformer
 import androidx.viewpager2.widget.ViewPager2
-import com.example.hearandthere_test.MyApplication
 import com.example.hearandthere_test.R
 import com.example.hearandthere_test.databinding.FragmentMapsBinding
 import com.example.hearandthere_test.injection.Injection
 import com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto
-import com.example.hearandthere_test.network.local.AudioGuideDatabase
-import com.example.hearandthere_test.network.local.LocalDataSource
-import com.example.hearandthere_test.network.local.datasource.AudioGuideLocalDataSource
-import com.example.hearandthere_test.network.local.datasource.AudioGuideLocalDataSourceImpl
-import com.example.hearandthere_test.network.repository.AudioGuideRepo
-import com.example.hearandthere_test.network.repository.AudioGuideRepoImpl
 import com.example.hearandthere_test.service.AudioService
+import com.example.hearandthere_test.ui.adapter.MapsViewPagerAdapter
 import com.example.hearandthere_test.ui.mapUtil.MapPermission
 import com.example.hearandthere_test.ui.mapUtil.MapState
 import com.example.hearandthere_test.ui.viewmodel.AudioViewModel
-import com.example.hearandthere_test.ui.viewmodel.ViewModelFactory
 import com.example.hearandthere_test.util.MusicChangedStatus
 import com.example.hearandthere_test.util.MusicState
 import com.example.hearandthere_test.util.MusicState.PARAM_MUSIC_LIST
@@ -55,9 +48,14 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.naver.maps.geometry.LatLng
-import com.naver.maps.map.*
+import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.MapFragment
-import kotlinx.android.synthetic.main.view_audio_nowplay.*
+import com.naver.maps.map.NaverMap
+import com.naver.maps.map.OnMapReadyCallback
+import com.naver.maps.map.overlay.PolylineOverlay
+import kotlinx.android.synthetic.main.fragment_maps.view.*
+import java.util.*
+import kotlin.collections.ArrayList
 
 class MapsFragment : Fragment(), OnMapReadyCallback {
 
@@ -76,6 +74,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     private lateinit var dataIntent : Intent
     lateinit var audioList : List<ResAudioTrackInfoItemDto>
     lateinit var dataList : ArrayList<ResAudioTrackInfoItemDto>
+    lateinit var mapsContentAdapter : MapsViewPagerAdapter
     private lateinit var handler : Handler
     private var musicPlayer : MediaPlayer? = null
     private var musicStatus: MusicChangedStatus = MusicChangedStatus.STOP
@@ -112,6 +111,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         return chkResult
     }
 
+    @SuppressLint("ResourceAsColor")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -134,6 +134,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             initMapSetting()
             initMusicReceiver()
             tryEnableLocation()
+            initAdapter()
         }
 
         return fragmentView
@@ -194,6 +195,9 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     private fun observeData(){
         audioViewModel.audioResponseLiveData.observe(this, Observer {
             audioList = it.audioTrackInfoList
+            mapsContentAdapter = MapsViewPagerAdapter(this, audioList)
+            fragmentView.vp_mapfragment_audioInfo.adapter = mapsContentAdapter
+
             it.run {
                 this.audioTrackInfoList.forEach { audio ->
                     dataList.add(audio)
@@ -207,6 +211,20 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         dataIntent.putParcelableArrayListExtra(PARAM_MUSIC_LIST, dataList)
         if (dataList.isNotEmpty()){
             context?.startService(dataIntent)
+        }
+    }
+
+    private fun initAdapter(){
+        val compositePageTransformer = CompositePageTransformer()
+        val marginPageTransformer = MarginPageTransformer(90)
+        compositePageTransformer.addTransformer(marginPageTransformer)
+
+        fragmentView.vp_mapfragment_audioInfo.let {
+            it.clipToPadding = false
+            it.clipChildren = false
+            it.offscreenPageLimit = 3
+            it.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+            it.setPageTransformer(compositePageTransformer)
         }
     }
 
@@ -245,12 +263,16 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         if (requestCode == MapState.PERMISSION_REQUEST_CODE) {
             if (grantResults.all { it == PermissionChecker.PERMISSION_GRANTED }) {
                 enableLocation()
             } else {
-                fab.setImageResource(R.drawable.ic_baseline_my_location_24)
+                fab.setImageResource(R.drawable.ic_my_loc)
             }
             return
         }
@@ -270,13 +292,16 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         disableLocation()
     }
 
+    @SuppressLint("ResourceAsColor")
     override fun onMapReady(naverMap: NaverMap) {
         map = naverMap
+
+        drawPolyLine()
 
         fab.setOnClickListener {
             if (MapState.trackingEnabled){
                 disableLocation()
-                fab.setImageResource(R.drawable.ic_baseline_my_location_24)
+                fab.setImageResource(R.drawable.ic_my_loc)
             }else{
                 fab.setImageDrawable(CircularProgressDrawable(requireContext()).apply {
                     setStyle(CircularProgressDrawable.LARGE)
@@ -293,8 +318,35 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         if (MapPermission.PERMISSIONS.all { ContextCompat.checkSelfPermission(requireContext(), it) == PermissionChecker.PERMISSION_GRANTED }) {
             enableLocation()
         } else {
-            ActivityCompat.requestPermissions(requireActivity(), MapPermission.PERMISSIONS, MapState.PERMISSION_REQUEST_CODE)
+            ActivityCompat.requestPermissions(
+                requireActivity(),
+                MapPermission.PERMISSIONS,
+                MapState.PERMISSION_REQUEST_CODE
+            )
         }
+    }
+
+    @SuppressLint("ResourceAsColor")
+    private fun drawPolyLine(){
+        val polyline = PolylineOverlay()
+        //여기에 map view model에서 옵저빙해온 Arraylist값에서 polyline값들을 빼서 polylist에 add하여 이 부분에 넣고 그린다.
+        // polyline draw 와 location marker는 별개로 동작.
+        // 마커와 뷰페이저 같이 동작.
+        polyline.coords = listOf(
+            LatLng(37.359924641705476, 127.1148204803467),
+            LatLng(37.36343797188166, 127.11486339569092),
+            LatLng(37.368520071054576, 127.11473464965819),
+            LatLng(37.3685882848096, 127.1088123321533),
+            LatLng(37.37295383612657, 127.10876941680907),
+            LatLng(37.38001321351567, 127.11851119995116),
+            LatLng(37.378546827477855, 127.11984157562254),
+            LatLng(37.376637072444105, 127.12052822113036),
+            LatLng(37.37530703574853, 127.12190151214598),
+            LatLng(37.371657839593894, 127.11645126342773),
+            LatLng(37.36855417793982, 127.1207857131958)
+        )
+        polyline.color = R.color.colorAccent
+        polyline.map = map
     }
 
     private fun enableLocation() {
@@ -314,6 +366,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                     MapState.waiting = true
 
                 }
+
                 override fun onConnectionSuspended(i: Int) {
                 }
             })
@@ -327,14 +380,16 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         if (!MapState.locationEnabled) {
             return
         }
-        LocationServices.getFusedLocationProviderClient(requireContext()).removeLocationUpdates(locationCallback)
+        LocationServices.getFusedLocationProviderClient(requireContext()).removeLocationUpdates(
+            locationCallback
+        )
         MapState.locationEnabled = false
         updateFAB()
     }
 
     private fun updateFAB(){
         if (MapState.trackingEnabled){
-            fab.setImageResource(R.drawable.ic_baseline_my_location_24)
+            fab.setImageResource(R.drawable.ic_my_loc)
         }else{
             fab.setImageResource(R.drawable.ic_baseline_location_disabled_24)
         }
@@ -368,7 +423,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun updateMusicDurationInfo(totalDuration: Int, currentTime : Int) {
+    private fun updateMusicDurationInfo(totalDuration: Int, currentTime: Int) {
         val totalPlayTime = milliSecondsToTimer(totalDuration)
         val nowPlayTime = milliSecondsToTimer(currentTime)
         tv_audioPlaytime.text = "$nowPlayTime / $totalPlayTime"
@@ -389,7 +444,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    private fun updateTitle(trackTitle : String, audioTitle : String){
+    private fun updateTitle(trackTitle: String, audioTitle: String){
         tv_audioTitle.text = trackTitle
     }
 

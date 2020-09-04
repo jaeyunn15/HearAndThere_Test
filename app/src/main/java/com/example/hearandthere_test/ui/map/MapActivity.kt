@@ -25,6 +25,7 @@ class MapActivity : AppCompatActivity(){
 
         if (fragment == null){
             fragment = mapsFragment
+
             addFragmentToActivity(
                 supportFragmentManager,
                 fragment,
