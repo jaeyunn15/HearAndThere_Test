@@ -16,11 +16,13 @@
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/vp_mapfragment_audioInfo"
-        android:layout_width="match_parent"
-        android:layout_height="180dp"
-        android:layout_gravity="bottom"
-        android:layout_marginBottom="70dp"
+        android:layout_width="wrap_content"
+        android:layout_height="185dp"
+        android:layout_gravity="bottom|center"
+        android:layout_marginBottom="71dp"
         app:layout_insetEdge="bottom"
+        android:clipToPadding="false"
+        android:clipChildren="false"
         />
 
     <include
@@ -42,7 +44,7 @@
         android:layout_margin="20dp"
         app:layout_dodgeInsetEdges="bottom"
         app:layout_anchor="@id/maps_frag_view"
-        app:layout_anchorGravity="bottom|end"
+        app:layout_anchorGravity="bottom|start"
         />
 
 

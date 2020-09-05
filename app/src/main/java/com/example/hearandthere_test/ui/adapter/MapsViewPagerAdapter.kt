@@ -19,6 +19,7 @@ class MapsViewPagerAdapter (private val activity: MapsFragment, private val data
 
     override fun onBindViewHolder(holder: MapsViewPagerAdapter.PagerViewHolder, position: Int) {
         holder.bind(data, position)
+
     }
 
     override fun getItemCount(): Int {
@@ -27,6 +28,7 @@ class MapsViewPagerAdapter (private val activity: MapsFragment, private val data
 
     inner class PagerViewHolder(itemView: View)
         : RecyclerView.ViewHolder(itemView){
+
         private val imgs : ImageView = itemView.findViewById(R.id.iv_maps_audioInfo)
         private val title : TextView = itemView.findViewById(R.id.tv_maps_audioInfo_title)
         private val num : TextView = itemView.findViewById(R.id.tv_maps_audioInfo_num)

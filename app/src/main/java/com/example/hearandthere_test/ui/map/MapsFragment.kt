@@ -10,6 +10,7 @@ import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,11 +21,13 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
+import androidx.core.view.*
 import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.CircularProgressDrawable
+import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.CompositePageTransformer
 import androidx.viewpager2.widget.MarginPageTransformer
 import androidx.viewpager2.widget.ViewPager2
@@ -52,8 +55,11 @@ import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.MapFragment
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
+import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.PolylineOverlay
+import kotlinx.android.synthetic.main.fragment_maps.*
 import kotlinx.android.synthetic.main.fragment_maps.view.*
+import java.lang.Math.abs
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -75,6 +81,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     lateinit var audioList : List<ResAudioTrackInfoItemDto>
     lateinit var dataList : ArrayList<ResAudioTrackInfoItemDto>
     lateinit var mapsContentAdapter : MapsViewPagerAdapter
+    private lateinit var marker : Marker
     private lateinit var handler : Handler
     private var musicPlayer : MediaPlayer? = null
     private var musicStatus: MusicChangedStatus = MusicChangedStatus.STOP
@@ -134,7 +141,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             initMapSetting()
             initMusicReceiver()
             tryEnableLocation()
-            initAdapter()
         }
 
         return fragmentView
@@ -189,20 +195,40 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun getData(){
-        audioViewModel.getAudioGuideByAudioGuideId(1)
+        audioViewModel.getAudioGuideByAudioGuideId(9)
     }
 
     private fun observeData(){
+
+        val compositePageTransformer : CompositePageTransformer = CompositePageTransformer()
+        val marginPageTransformer : MarginPageTransformer = MarginPageTransformer(20)
+        compositePageTransformer.addTransformer(marginPageTransformer)
+
         audioViewModel.audioResponseLiveData.observe(this, Observer {
+
             audioList = it.audioTrackInfoList
+            Log.d("AudioList Size", "${audioList.size}")
             mapsContentAdapter = MapsViewPagerAdapter(this, audioList)
-            fragmentView.vp_mapfragment_audioInfo.adapter = mapsContentAdapter
+
+            val pageMargin = resources.getDimensionPixelOffset(R.dimen.pageMargin).toFloat()
+            val pageOffset = resources.getDimensionPixelOffset(R.dimen.offset).toFloat()
+
+            fragmentView.vp_mapfragment_audioInfo.let {vp ->
+                vp.adapter = mapsContentAdapter
+                vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
+                vp.offscreenPageLimit = 3
+                vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
+                vp.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+                vp.setPageTransformer(compositePageTransformer)
+
+            }
 
             it.run {
                 this.audioTrackInfoList.forEach { audio ->
                     dataList.add(audio)
                 }
                 putDataToService()
+                drawMarker()
             }
         })
     }
@@ -214,17 +240,13 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    private fun initAdapter(){
-        val compositePageTransformer = CompositePageTransformer()
-        val marginPageTransformer = MarginPageTransformer(90)
-        compositePageTransformer.addTransformer(marginPageTransformer)
-
-        fragmentView.vp_mapfragment_audioInfo.let {
-            it.clipToPadding = false
-            it.clipChildren = false
-            it.offscreenPageLimit = 3
-            it.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-            it.setPageTransformer(compositePageTransformer)
+    private fun drawMarker(){
+        dataList.forEach {item ->
+            val lat = item.trackLatitude
+            val lon = item.trackLongitude
+            marker = Marker()
+            marker.position = LatLng(lat,lon)
+            marker.map = map
         }
     }
 

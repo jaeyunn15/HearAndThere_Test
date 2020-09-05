@@ -15,7 +15,9 @@ data class ResAudioTrackInfoItemDto (
     @SerializedName("placeName") val placeName: String?,
     @SerializedName("runningTime") val runningTime: String?,
     @SerializedName("title") val title: String?,
-    @SerializedName("trackOrderNumber") val trackOrderNumber: Int
+    @SerializedName("trackOrderNumber") val trackOrderNumber: Int,
+    @SerializedName("trackLatitude") val  trackLatitude : Double,
+    @SerializedName("trackLongitude") val trackLongitude : Double
 ) : Parcelable {
 
     constructor(parcel: Parcel) : this(
@@ -26,7 +28,9 @@ data class ResAudioTrackInfoItemDto (
         parcel.readString(),
         parcel.readString(),
         parcel.readString(),
-        parcel.readInt()
+        parcel.readInt(),
+        parcel.readDouble(),
+        parcel.readDouble()
     ) {
     }
 
@@ -39,6 +43,8 @@ data class ResAudioTrackInfoItemDto (
         parcel.writeString(runningTime)
         parcel.writeString(title)
         parcel.writeInt(trackOrderNumber)
+        parcel.writeDouble(trackLatitude)
+        parcel.writeDouble(trackLongitude)
     }
 
     override fun describeContents(): Int {
