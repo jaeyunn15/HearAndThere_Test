@@ -21,13 +21,11 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
-import androidx.core.view.*
 import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.CircularProgressDrawable
-import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.CompositePageTransformer
 import androidx.viewpager2.widget.MarginPageTransformer
 import androidx.viewpager2.widget.ViewPager2
@@ -57,10 +55,7 @@ import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.PolylineOverlay
-import kotlinx.android.synthetic.main.fragment_maps.*
 import kotlinx.android.synthetic.main.fragment_maps.view.*
-import java.lang.Math.abs
-import java.util.*
 import kotlin.collections.ArrayList
 
 class MapsFragment : Fragment(), OnMapReadyCallback {
@@ -97,6 +92,10 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             locationOverlay.position = coord
             locationOverlay.bearing = lastLocation.bearing
             map.moveCamera(CameraUpdate.scrollTo(coord))
+
+            getNearestAudioData(coord)
+            observeNearestData()
+
             if (MapState.waiting) {
                 MapState.waiting = false
                 fab.setImageResource(R.drawable.ic_baseline_location_disabled_24)
@@ -141,6 +140,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             initMapSetting()
             initMusicReceiver()
             tryEnableLocation()
+
         }
 
         return fragmentView
@@ -150,6 +150,23 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         audioViewModel = Injection.provideAudioViewModel()
         getData() //데이터 먼저 가져와야지
         observeData() //가져온 데이터 설정으로 넣어놔야
+    }
+
+    private fun getNearestAudioData(loc : LatLng){
+        val lat = loc.latitude.toString()
+        val lon = loc.longitude.toString()
+        audioViewModel.getAudioTrackByLocation(9,loc.latitude,loc.longitude)
+    }
+
+    private fun observeNearestData(){
+        audioViewModel.nearestAudioByLocationResponseLiveData.observe(this, Observer{
+            if (it.isAudioTrackNearBy){
+                val ad = it.resNearestAudioTrackInfoDto.audioFileUrl
+                Log.d("OND TEST", ad)
+            }else{
+                Log.d("OND TEST","Near Audio Guide isn't Exist!!")
+            }
+        })
     }
 
     private fun initSetting(){
@@ -249,6 +266,8 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             marker.map = map
         }
     }
+    //37.577306
+    //126.986411
 
     private fun milliSecondsToTimer(milliSeconds: Int) : String? {
         var timerString = ""
