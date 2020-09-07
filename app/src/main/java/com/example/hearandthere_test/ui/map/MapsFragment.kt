@@ -14,13 +14,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.SeekBar
-import android.widget.TextView
+import android.widget.*
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
+import androidx.core.view.marginBottom
 import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -54,6 +53,7 @@ import com.naver.maps.map.MapFragment
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
 import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.Overlay
 import com.naver.maps.map.overlay.PolylineOverlay
 import kotlinx.android.synthetic.main.fragment_maps.view.*
 import kotlin.collections.ArrayList
@@ -161,8 +161,8 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     private fun observeNearestData(){
         audioViewModel.nearestAudioByLocationResponseLiveData.observe(this, Observer{
             if (it.isAudioTrackNearBy){
-                val ad = it.resNearestAudioTrackInfoDto.audioFileUrl
-                Log.d("OND TEST", ad)
+                val ad = it.nearestTrackInfo.audioFileUrl
+                Log.d("OND TEST", ad.toString())
             }else{
                 Log.d("OND TEST","Near Audio Guide isn't Exist!!")
             }
@@ -188,27 +188,16 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun attachOnClick(){
         view_nowplay.setOnClickListener {
-            if (vp.isShown){
-                vp.visibility = View.GONE
-            }else{
-                vp.visibility = View.VISIBLE
-            }
+            if (vp.isShown){ vp.visibility = View.GONE
+            }else{ vp.visibility = View.VISIBLE }
         }
         btn_PausePlay.setOnClickListener {
-            if (musicStatus == MusicChangedStatus.STOP){
-                play()
-            }else if (musicStatus == MusicChangedStatus.PLAY){
-                pause()
-            }else if (musicStatus == MusicChangedStatus.PAUSE){
-                play()
-            }
+            if (musicStatus == MusicChangedStatus.STOP){ play() }
+            else if (musicStatus == MusicChangedStatus.PLAY){ pause() }
+            else if (musicStatus == MusicChangedStatus.PAUSE){ play() }
         }
-        btn_NextAudio.setOnClickListener {
-            next()
-        }
-        btn_PrevAudio.setOnClickListener {
-            prev()
-        }
+        btn_NextAudio.setOnClickListener { next() }
+        btn_PrevAudio.setOnClickListener { prev() }
     }
 
     private fun getData(){
@@ -216,29 +205,13 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun observeData(){
-
         val compositePageTransformer : CompositePageTransformer = CompositePageTransformer()
-        val marginPageTransformer : MarginPageTransformer = MarginPageTransformer(20)
+        val marginPageTransformer : MarginPageTransformer = MarginPageTransformer(40)
         compositePageTransformer.addTransformer(marginPageTransformer)
 
-        audioViewModel.audioResponseLiveData.observe(this, Observer {
-
+        audioViewModel.audioResponseLiveData.observe(this, Observer { it ->
             audioList = it.audioTrackInfoList
-            Log.d("AudioList Size", "${audioList.size}")
             mapsContentAdapter = MapsViewPagerAdapter(this, audioList)
-
-            val pageMargin = resources.getDimensionPixelOffset(R.dimen.pageMargin).toFloat()
-            val pageOffset = resources.getDimensionPixelOffset(R.dimen.offset).toFloat()
-
-            fragmentView.vp_mapfragment_audioInfo.let {vp ->
-                vp.adapter = mapsContentAdapter
-                vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
-                vp.offscreenPageLimit = 3
-                vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
-                vp.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-                vp.setPageTransformer(compositePageTransformer)
-
-            }
 
             it.run {
                 this.audioTrackInfoList.forEach { audio ->
@@ -247,27 +220,54 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 putDataToService()
                 drawMarker()
             }
+
+            fragmentView.vp_mapfragment_audioInfo.let { vp ->
+                vp.adapter = mapsContentAdapter
+                vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
+                vp.offscreenPageLimit = 3
+                vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
+                vp.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+                vp.setPageTransformer(compositePageTransformer)
+                vp.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                    override fun onPageSelected(position: Int) {
+                        super.onPageSelected(position)
+                        dataList.forEach {
+                            if (it.trackOrderNumber == position+1){
+                                val movedMarkPos = LatLng(it.trackLatitude, it.trackLongitude)
+                                map.moveCamera(CameraUpdate.scrollAndZoomTo(movedMarkPos, 15.0))
+                            }
+                        }
+                    }
+                })
+            }
         })
     }
 
     private fun putDataToService(){
         dataIntent.putParcelableArrayListExtra(PARAM_MUSIC_LIST, dataList)
-        if (dataList.isNotEmpty()){
-            context?.startService(dataIntent)
-        }
+        if (dataList.isNotEmpty()){ context?.startService(dataIntent) }
     }
 
     private fun drawMarker(){
         dataList.forEach {item ->
-            val lat = item.trackLatitude
-            val lon = item.trackLongitude
             marker = Marker()
-            marker.position = LatLng(lat,lon)
-            marker.map = map
+            marker.let {
+                it.position = LatLng(item.trackLatitude, item.trackLongitude)
+                it.tag = item.trackOrderNumber
+                it.onClickListener(this, marker.position)
+                it.map = map
+            }
         }
     }
-    //37.577306
-    //126.986411
+
+    private operator fun Overlay.OnClickListener?.invoke(mapsFragment: MapsFragment, markerPosition : LatLng) {
+        mapsFragment.marker.setOnClickListener {
+            map.moveCamera(CameraUpdate.scrollAndZoomTo(markerPosition,15.0))
+            if (!vp.isShown){ vp.visibility = View.VISIBLE }
+            vp.currentItem = (it.tag) as Int -1
+            return@setOnClickListener true
+        }
+    }
 
     private fun milliSecondsToTimer(milliSeconds: Int) : String? {
         var timerString = ""
@@ -323,9 +323,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     override fun onStart() {
         super.onStart()
-        if (MapState.trackingEnabled) {
-            enableLocation()
-        }
+        if (MapState.trackingEnabled) { enableLocation() }
     }
 
     override fun onStop() {
@@ -336,7 +334,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     @SuppressLint("ResourceAsColor")
     override fun onMapReady(naverMap: NaverMap) {
         map = naverMap
-
         drawPolyLine()
 
         fab.setOnClickListener {
@@ -352,6 +349,10 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 tryEnableLocation()
             }
             MapState.trackingEnabled = !MapState.trackingEnabled
+        }
+
+        map.setOnMapClickListener { pointF, latLng ->
+            if (vp.isShown){ vp.visibility = View.GONE }
         }
     }
 

@@ -14,26 +14,6 @@
         android:layout_height="match_parent"
         />
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/vp_mapfragment_audioInfo"
-        android:layout_width="wrap_content"
-        android:layout_height="185dp"
-        android:layout_gravity="bottom|center"
-        android:layout_marginBottom="71dp"
-        app:layout_insetEdge="bottom"
-        android:clipToPadding="false"
-        android:clipChildren="false"
-        />
-
-    <include
-        android:id="@+id/view_bottom_now_play"
-        layout="@layout/view_audio_nowplay"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        app:layout_insetEdge="bottom"
-        />
-
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
         android:layout_width="wrap_content"
@@ -47,6 +27,27 @@
         app:layout_anchorGravity="bottom|start"
         />
 
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/vp_mapfragment_audioInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="185dp"
+        android:layout_gravity="bottom|center"
+        app:layout_insetEdge="bottom"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:visibility="gone"
+        />
+
+
+    <include
+        android:id="@+id/view_bottom_now_play"
+        layout="@layout/view_audio_nowplay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:layout_insetEdge="bottom"
+        android:visibility="gone"
+        />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>

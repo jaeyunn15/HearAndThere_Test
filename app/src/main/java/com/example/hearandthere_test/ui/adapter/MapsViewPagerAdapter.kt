@@ -19,7 +19,6 @@ class MapsViewPagerAdapter (private val activity: MapsFragment, private val data
 
     override fun onBindViewHolder(holder: MapsViewPagerAdapter.PagerViewHolder, position: Int) {
         holder.bind(data, position)
-
     }
 
     override fun getItemCount(): Int {
@@ -42,6 +41,5 @@ class MapsViewPagerAdapter (private val activity: MapsFragment, private val data
             num.text = (position+1).toString()
             address.text = data[position].placeAddress
         }
-
     }
 }
