@@ -2,6 +2,11 @@
 <layout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <data>
+        <variable
+            name="Item"
+            type="com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto" />
+    </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -39,7 +44,7 @@
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:background="@drawable/rounded"
-                android:text="9"
+                android:text="@{Integer.toString(Item.trackOrderNumber)}"
                 android:textAlignment="center"
                 android:textColor="#ffffff"
                 app:layout_constraintTop_toBottomOf="@+id/iv_maps_audioInfo"
@@ -52,7 +57,7 @@
                 android:id="@+id/tv_maps_audioInfo_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Mangwon Hangang Park"
+                android:text="@{Item.title}"
                 android:textSize="14sp"
                 android:maxLines="2"
                 android:fontFamily="sans-serif"
@@ -73,7 +78,7 @@
                 android:textColor="#373737"
                 android:maxLines="2"
                 android:lineSpacingExtra="3.9sp"
-                android:text="467, Maponaru-gil, Mapo-gu, Seoul 04005 South Korea"
+                android:text="@{Item.placeAddress}"
                 app:layout_constraintTop_toBottomOf="@id/tv_maps_audioInfo_title"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -100,6 +105,7 @@
                 />
 
             <androidx.cardview.widget.CardView
+                android:id="@+id/cv_play_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="4dp"
@@ -107,7 +113,6 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
                 android:layout_marginBottom="12dp"
-
                 android:layout_marginEnd="16dp"
                 android:layout_marginStart="72dp"
                 android:layout_marginTop="8dp"
@@ -132,6 +137,7 @@
                         />
 
                     <TextView
+                        android:id="@+id/tv_play_button"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="12sp"
