@@ -12,42 +12,48 @@ import android.util.Log
 import com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto
 import com.example.hearandthere_test.model.response.ResNearestAudioTrackInfoDto
 import com.example.hearandthere_test.ui.mapUtil.MapState
-import com.example.hearandthere_test.util.PlayBackState
 import com.example.hearandthere_test.util.MusicState
+import com.example.hearandthere_test.util.PlayBackState
 
 
-@Suppress("UNCHECKED_CAST")
-class AudioService : Service(), MediaPlayer.OnCompletionListener{
+class AudioService : Service(){
 
     private var isPrepared = false
     private var isPlayed = false
-    private var mIsMusicPause = false
+
     private var binder: IBinder = AudioServiceBinder()
     private var trackAudioList = ArrayList<ResAudioTrackInfoItemDto>()
     private var nearAudioList = ArrayList<ResNearestAudioTrackInfoDto>()
     private val mMusicReceiver = MusicReceiver()
-    private var mIsMusicPLayingNow = false
     private var MUSIC_URL : String? = null
     private var mCurrentMusicIndex = 0
     var mediaState = false //default false
     private var pausePosition : Int? = null
-    private var mPlayer : MediaPlayer = MediaPlayer()
+    lateinit var mPlayer : MediaPlayer
     var mediaPlayers : ArrayList<MediaPlayer> = arrayListOf()
+
     private lateinit var nearAudioDatas: ArrayList<ResNearestAudioTrackInfoDto>
     private lateinit var trackAudioDatas: ArrayList<ResAudioTrackInfoItemDto>
+
+    private lateinit var distinctTrackList: MutableList<ResAudioTrackInfoItemDto>
     private lateinit var distinctList : MutableList<ResNearestAudioTrackInfoDto>
+
+    private var instance: MyMediaPlayer? = null
 
     inner class AudioServiceBinder : Binder(){
         fun getService() : AudioService {
             return AudioService()
         }
     }
+
+
     override fun onBind(p0: Intent?): IBinder? {
         return binder
     }
 
     override fun onCreate() {
         super.onCreate()
+        mPlayer = MediaPlayer()
         initBoardCastReceiver()
     }
 
@@ -62,8 +68,11 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
         intentFilter.addAction(MusicState.BS_ENTRY)
         intentFilter.addAction(MusicState.BS_REOPEN)
         intentFilter.addAction(MusicState.MUSIC_NOW_PLAYING)
+        intentFilter.addAction(MusicState.ACTION_LOCATION_BASE_PLAY_STOP)
+        intentFilter.addAction(MusicState.ACTION_TRACK_BASE_PLAY)
         registerReceiver(mMusicReceiver, intentFilter)
         distinctList = ArrayList()
+        distinctTrackList = ArrayList()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -72,21 +81,25 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
     }
 
     private fun initMusicDatas(intent: Intent){
-        if (MapState.nearAudioGuideEnabled){ //주변 오디오 있다면
+
+        if (MapState.IS_NOW_NEAR_AUDIO_PLAY){
+            Log.d("오디오 서비스 테스트!!", "위치 기반 재생!!")
+            nearAudioList.clear()
             nearAudioDatas = intent.getParcelableArrayListExtra(MusicState.PARAM_MUSIC_LIST_BY_LOCATION)
-            distinctList = nearAudioDatas
-            distinctList = distinctList.toSet().toMutableList()
-            distinctList.forEach {
-                if (it.audioFileUrl == nearAudioDatas[0].audioFileUrl){
-                    //pass
-                }else{
-                    nearAudioList.addAll(nearAudioDatas)
-                }
-            }
-            Log.d("오디오 서비스 위치!!", "${distinctList.size}")
-        }else{ // 주변 오디오 없다면
+            nearAudioList.addAll(nearAudioDatas) //중복되지 않는 오디오 데이터 넣음
+            Log.d("오디오 서비스 데이터 사이즈!!", "${nearAudioList.size}")
+            Log.d("오디오 서비스 데이터 아이!!", "${nearAudioList[0].audioTrackId}")
+            play(mCurrentMusicIndex)
+
+        }else if (!MapState.IS_NOW_NEAR_AUDIO_PLAY) { // 현재 재생 : 트랙재생
+            Log.d("오디오 테스트!!", "트랙 기반 재생!!")
+
             trackAudioDatas = intent.getParcelableArrayListExtra(MusicState.PARAM_MUSIC_LIST_BY_TRACK)
-            trackAudioList.addAll(trackAudioDatas)
+            if (trackAudioList.isNotEmpty()){ //현재 들어있는 데이터가 있다면?
+                //pass
+            }else{ //9개 있는데 더 넣을 필요 없지.
+                trackAudioList.addAll(trackAudioDatas) //중복되지 않는 오디오 데이터 넣음
+            }
             Log.d("오디오 서비스 트랙!!", "${trackAudioList.size}")
         }
     }
@@ -98,73 +111,115 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
         PlayBackState.MediaPlayers.clear()
     }
 
+
     private fun play(index: Int) {
-        if (index >= trackAudioList.size) {
-            return
-        }
+        if (MapState.IS_NOW_NEAR_AUDIO_PLAY){ //주변에 오디오 데이터 있다면.
+            if (index >= trackAudioList.size) { return }
 
-        if (nearAudioList.isNotEmpty()){
-            if (index>=nearAudioList.size){
-                return
+            if (mCurrentMusicIndex == index && PlayBackState.mIsMusicPause) {
+                mPlayer.start()
+
+            } else {
+                prepare(index)
+                mCurrentMusicIndex = index
+                PlayBackState.mIsMusicPause = false
             }
-        }
+        } else if (!MapState.IS_NOW_NEAR_AUDIO_PLAY){ //트랙 기반 재생
+            if (index >= trackAudioList.size) { return }
 
-        if (mCurrentMusicIndex == index && mIsMusicPause) {
-            mPlayer.start()
-        } else {
-            mPlayer.reset()
-            try {
-                MUSIC_URL = trackAudioList[index].audioFileUrl
-                mPlayer.setDataSource(MUSIC_URL)
-                mPlayer.setOnPreparedListener(mPrepareListener)
-                mPlayer.prepareAsync()
+            if (mCurrentMusicIndex == index && PlayBackState.mIsMusicPause) {
+                mPlayer.start()
 
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } else {
+                prepare(index)
+                mCurrentMusicIndex = index
+                PlayBackState.mIsMusicPause = false
             }
-            mCurrentMusicIndex = index
-            mIsMusicPause = false
+
         }
 
-
-        mIsMusicPLayingNow = true
+        PlayBackState.mIsMusicPLayingNow = true //현재 재생 중  (서비스에서 아는)
+        PlayBackState.chkIsPlay = true //현재 재생 중 (뷰에서 아는)
+        PlayBackState.CHECK_IS_PLAY_AUDIO = true
         sendMusicStatusBroadCast(MusicState.ACTION_STATUS_MUSIC_PLAY)
         PlayBackState.MediaPlayers.add(mPlayer)
     }
 
-    private var mPrepareListener : MediaPlayer.OnPreparedListener = MediaPlayer.OnPreparedListener {
-        it.start()
+    private fun prepare(index: Int){
+        try {
+            if (MapState.IS_NOW_NEAR_AUDIO_PLAY) { //주변에 오디오 데이터 있다면.
+                MUSIC_URL = nearAudioList[index].audioFileUrl
+            } else if(!MapState.IS_NOW_NEAR_AUDIO_PLAY){
+                MUSIC_URL = trackAudioList[index].audioFileUrl
+            }
+            mPlayer.setDataSource(MUSIC_URL)
+            mPlayer.setOnPreparedListener(mPrepareListener)
+            mPlayer.prepare()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private var mPrepareListener : MediaPlayer.OnPreparedListener = MediaPlayer.OnPreparedListener {mp ->
+        mp.start()
+        mp.setOnCompletionListener(listener)
         val duration: Int = mPlayer.duration
         val currentPosition : Int = mPlayer.currentPosition
-        sendMusicDurationBroadCast(duration,currentPosition)
+        sendMusicDurationBroadCast(duration, currentPosition)
         sendMusicInfoBroadCast(mCurrentMusicIndex)
         sendNowPlayAudioIndex(mCurrentMusicIndex)
     }
 
+
+    private var listener : MediaPlayer.OnCompletionListener = MediaPlayer.OnCompletionListener {
+        Log.d("오디오 서비스 테스트", "on COMPLETE !")
+        PlayBackState.mIsMusicPLayingNow = false //노래 재생 끝
+        PlayBackState.chkIsPlay = false //노래 재생 끝
+        PlayBackState.CHECK_IS_PLAY_AUDIO = false
+        mPlayer.reset()
+        PlayBackState.MediaPlayers.clear()
+        sendMusicCompleteBroadCast()
+    }
+
     private fun pause() {
         mPlayer.pause()
-        mIsMusicPause = true
-        mIsMusicPLayingNow = false
+        PlayBackState.mIsMusicPause = true
+        PlayBackState.mIsMusicPLayingNow = false
         sendMusicStatusBroadCast(MusicState.ACTION_STATUS_MUSIC_PAUSE)
     }
 
     private fun stop() {
         mPlayer.stop()
-        mIsMusicPLayingNow = false
+        PlayBackState.mIsMusicPLayingNow = false
+        PlayBackState.chkIsPlay = false
+        PlayBackState.CHECK_IS_PLAY_AUDIO = false
     }
 
     private fun next() {
-        if (mCurrentMusicIndex + 1 < trackAudioList.size) {
-            play(mCurrentMusicIndex + 1)
-            mIsMusicPLayingNow = true
-            sendMusicInfoBroadCast(mCurrentMusicIndex + 1)
+        if (MapState.IS_NOW_NEAR_AUDIO_PLAY) { //주변에 오디오 데이터 있다면.
+            if (mCurrentMusicIndex + 1 < nearAudioList.size) {
+                play(mCurrentMusicIndex + 1)
+                PlayBackState.mIsMusicPLayingNow = true
+                PlayBackState.chkIsPlay = true
+                sendMusicInfoBroadCast(mCurrentMusicIndex + 1)
+            }
+
+        } else {
+            if (mCurrentMusicIndex + 1 < trackAudioList.size) {
+                play(mCurrentMusicIndex + 1)
+                PlayBackState.mIsMusicPLayingNow = true
+                PlayBackState.chkIsPlay = true
+                sendMusicInfoBroadCast(mCurrentMusicIndex + 1)
+            }
         }
     }
 
     private fun last() {
         if (mCurrentMusicIndex != 0) {
             play(mCurrentMusicIndex - 1)
-            mIsMusicPLayingNow = true
+            PlayBackState.mIsMusicPLayingNow = true
+            PlayBackState.chkIsPlay = true
             sendMusicInfoBroadCast(mCurrentMusicIndex - 1)
         }
     }
@@ -173,18 +228,27 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
         if (mPlayer.isPlaying) {
             val position = intent.getIntExtra(MusicState.PARAM_MUSIC_SEEK_TO, 0)
             mPlayer.seekTo(position)
-            mIsMusicPLayingNow = true
+            PlayBackState.mIsMusicPLayingNow = true
+            PlayBackState.chkIsPlay = true
         }
+    }
+
+    private fun stopLocationService(){
+        PlayBackState.mIsMusicPLayingNow = false //노래 재생 끝
+        PlayBackState.chkIsPlay = false //노래 재생 끝
+        PlayBackState.CHECK_IS_PLAY_AUDIO = false
+        mCurrentMusicIndex = 0
+        mPlayer.reset()
+        PlayBackState.MediaPlayers.clear()
     }
 
     private fun sendMusicCompleteBroadCast() {
         val intent = Intent(MusicState.ACTION_STATUS_MUSIC_COMPLETE)
-        intent.putExtra(MusicState.PARAM_MUSIC_IS_OVER, mCurrentMusicIndex == trackAudioList.size - 1)
         sendBroadcast(intent)
     }
 
 
-    private fun sendMusicDurationBroadCast(duration: Int, currentPosition : Int) {
+    private fun sendMusicDurationBroadCast(duration: Int, currentPosition: Int) {
         val intent = Intent(MusicState.ACTION_STATUS_MUSIC_DURATION)
         intent.putExtra(MusicState.PARAM_MUSIC_DURATION, duration)
         intent.putExtra(MusicState.PARAM_MUSIC_CURRENT_POSITION, currentPosition)
@@ -201,16 +265,24 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
     }
 
     private fun sendMusicInfoBroadCast(index: Int) {
-        val title = trackAudioList[index].title
-        val title2 = trackAudioList[index].placeName
-
+        var title : String = ""
+        var title2 : String = ""
         val intent = Intent(MusicState.MUSIC_INFO)
+
+        if (MapState.IS_NOW_NEAR_AUDIO_PLAY) { //주변에 오디오 데이터 있다면.
+             title = nearAudioList[index].title.toString()
+             title2 = nearAudioList[index].placeName.toString()
+        }else{
+            title = trackAudioList[index].title.toString()
+            title2 = trackAudioList[index].placeName.toString()
+        }
+
         intent.putExtra(MusicState.MUSIC_INFO_TRACK_TITLE, title)
         intent.putExtra(MusicState.MUSIC_INFO_AUDIO_TITLE, title2)
         sendBroadcast(intent)
     }
 
-    private fun sendNowPlayAudioIndex(index:Int){
+    private fun sendNowPlayAudioIndex(index: Int){
         val intent = Intent(MusicState.NOWPLAY_MUSIC_IDX)
         intent.putExtra(MusicState.NOWPLAY_MUSIC_IDX_VALUE, index)
         sendBroadcast(intent)
@@ -219,21 +291,46 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
     inner class MusicReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                MusicState.ACTION_MUSIC_PLAY -> { play(mCurrentMusicIndex) }
-                MusicState.ACTION_MUSIC_PAUSE -> { pause() }
-                MusicState.ACTION_MUSIC_LAST -> { last() }
-                MusicState.ACTION_MUSIC_NEXT -> { next() }
-                MusicState.ACTION_MUSIC_STOP -> { stop() }
-                MusicState.ACTION_MUSIC_SEEK_TO -> { seekTo(intent) }
-                MusicState.BS_REOPEN -> { sendMusicInfoBroadCast(mCurrentMusicIndex) }
-                MusicState.MUSIC_NOW_PLAYING -> { sendNowPlayAudioIndex(mCurrentMusicIndex) }
+                MusicState.ACTION_MUSIC_PLAY -> {
+                    play(mCurrentMusicIndex)
+                    Log.d("오디오 테스트 ", " 서비스에서 다시 재생하려")
+                }
+                MusicState.ACTION_MUSIC_PAUSE -> {
+                    pause()
+                }
+                MusicState.ACTION_MUSIC_LAST -> {
+                    last()
+                }
+                MusicState.ACTION_MUSIC_NEXT -> {
+                    next()
+                }
+                MusicState.ACTION_MUSIC_STOP -> {
+                    stop()
+                }
+                MusicState.ACTION_MUSIC_SEEK_TO -> {
+                    seekTo(intent)
+                }
+                MusicState.BS_REOPEN -> {
+                    sendMusicInfoBroadCast(mCurrentMusicIndex)
+                }
+                MusicState.MUSIC_NOW_PLAYING -> {
+                    sendNowPlayAudioIndex(mCurrentMusicIndex)
+                }
+                MusicState.ACTION_LOCATION_BASE_PLAY_STOP -> {
+                    stopLocationService()
+                }
+                MusicState.ACTION_TRACK_BASE_PLAY -> {
+                    val pos = intent.getIntExtra("position",-1)
+                    if (pos != -1) {
+                        play(pos)
+                        mCurrentMusicIndex = pos
+                        Log.d("오디오 써비스 ","$pos 재생")
+                    }
+                }
             }
         }
     }
 
-    override fun onCompletion(p0: MediaPlayer?) {
-        sendMusicCompleteBroadCast()
-    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -244,4 +341,5 @@ class AudioService : Service(), MediaPlayer.OnCompletionListener{
         pausePosition = null
         unregisterReceiver(MusicReceiver())
     }
+
 }

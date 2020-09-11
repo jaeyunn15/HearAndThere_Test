@@ -26,7 +26,7 @@ class MapsViewPagerAdapter (private val activity: MapsFragment, private val data
 
     override fun onBindViewHolder(holder: MapsViewPagerAdapter.PagerViewHolder, position: Int) {
         holder.bind(data, position)
-        holder.binding(data[position],position)
+        holder.binding(data[position],position, data[position].trackLatitude, data[position].trackLongitude)
     }
 
     override fun getItemCount(): Int {
@@ -36,10 +36,10 @@ class MapsViewPagerAdapter (private val activity: MapsFragment, private val data
     inner class PagerViewHolder(private val binding : ItemMapsAudioContentBinding) : RecyclerView.ViewHolder(binding.root){
         private val imgs : ImageView = itemView.findViewById(R.id.iv_maps_audioInfo)
 
-        fun binding(data : Any, pos : Int){
+        fun binding(data : Any, pos : Int, lati : Double, longi: Double){
             binding.setVariable(BR.Item, data)
             binding.cvPlayButton.setOnClickListener {
-                activity.clickListener(pos)
+                activity.clickListener(pos, lati, longi)
             }
         }
 

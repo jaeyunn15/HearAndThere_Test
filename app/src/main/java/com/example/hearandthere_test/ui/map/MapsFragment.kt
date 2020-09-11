@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.MediaPlayer
+import android.media.MediaPlayer.OnCompletionListener
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -70,7 +71,7 @@ import kotlinx.android.synthetic.main.fragment_maps.view.*
 import kotlin.collections.ArrayList
 import android.graphics.drawable.Drawable as Drawable
 
-class MapsFragment : Fragment(), OnMapReadyCallback {
+class MapsFragment : Fragment(), OnMapReadyCallback{
 
     private lateinit var map: NaverMap
     private lateinit var fab : FloatingActionButton
@@ -88,12 +89,14 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     private lateinit var nearAduioIntent : Intent
     private lateinit var trackAudioList : ArrayList<ResAudioTrackInfoItemDto>  //트랙에 따른 오디오 데이터
     private lateinit var nearAudioList : ArrayList<ResNearestAudioTrackInfoDto> //내 위치에 따른 오디오 데이터
+
     private lateinit var mapsContentAdapter : MapsViewPagerAdapter
     private lateinit var marker : Marker
     private lateinit var handler : Handler
     private lateinit var audioUiHelper: AudioUiHelper
     private var musicPlayer : MediaPlayer? = null
     private var musicStatus: MusicChangedStatus = MusicChangedStatus.STOP
+    private var urlList : ArrayList<String> = arrayListOf()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult?) {
@@ -109,6 +112,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
             getNearestAudioData(coord)
             observeNearestData()
+
 
             if (MapState.waiting) {
                 MapState.waiting = false
@@ -127,6 +131,8 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 updateMusicDurationInfo(mediaPlayer.duration, mediaPlayer.currentPosition)
                 updateSeekBar()
             }
+            val test = PlayBackState.MediaPlayers.size
+            Log.d("chkIsPlay 길이 : ", "$test")
         }
         return chkResult
     }
@@ -214,9 +220,12 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 vp.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                     override fun onPageSelected(position: Int) {
                         super.onPageSelected(position)
+
                         trackAudioList.forEach {
                             if (it.trackOrderNumber == position+1){
                                 val movedMarkPos = LatLng(it.trackLatitude, it.trackLongitude)
+                                drawMarker()
+                                clickedMarker(it.trackLatitude, it.trackLongitude, it.trackOrderNumber)
                                 map.moveCamera(CameraUpdate.scrollTo(movedMarkPos))
                             }
                         }
@@ -232,9 +241,11 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             }else{ vp.visibility = View.VISIBLE }
         }
         btn_PausePlay.setOnClickListener {
-            if (musicStatus == MusicChangedStatus.STOP){ play() }
-            else if (musicStatus == MusicChangedStatus.PLAY){ pause() }
-            else if (musicStatus == MusicChangedStatus.PAUSE){ play() }
+            when (musicStatus) {
+                MusicChangedStatus.STOP -> { play() }
+                MusicChangedStatus.PLAY -> { pause() }
+                MusicChangedStatus.PAUSE -> { play() }
+            }
         }
         btn_NextAudio.setOnClickListener { next() }
         btn_PrevAudio.setOnClickListener { prev() }
@@ -256,6 +267,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_DURATION)
             intentFilter.addAction(MusicState.MUSIC_INFO)
             intentFilter.addAction(MusicState.PLAYLIST_UP)
+            intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_COMPLETE)
             context!!.registerReceiver(MusicReceiver(), intentFilter) //정적으로 리시버 등록
         }
     }
@@ -274,47 +286,63 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun getNearestAudioData(loc : LatLng){
         audioViewModel.getAudioTrackByLocation(9,loc.latitude,loc.longitude)
+        Log.d("오디오 테스트","내 위치 ")
     }
 
-    private fun observeNearestData(){
+    private fun observeNearestData(){ //일단 위치 추적을 키고 있다면.
         audioViewModel.nearestAudioByLocationResponseLiveData.observe(this, Observer{
-            if (it.isAudioTrackNearBy){ //50m 내에 있다면?
-                var newlist : MutableList<ResNearestAudioTrackInfoDto> = ArrayList()
-                nearAudioList.add(it.nearestTrackInfo)
-                newlist = nearAudioList
-                newlist = newlist.toSet().toMutableList()
-                nearAudioList = newlist as ArrayList<ResNearestAudioTrackInfoDto>
-                Log.d("OND TEST", "${nearAudioList.size}")
-                nearAduioIntent.putParcelableArrayListExtra(PARAM_MUSIC_LIST_BY_LOCATION, nearAudioList)
-                MapState.nearAudioGuideEnabled = true
-                putDataToService() //음악 데이터 보냄.
 
-            } else { //50m 내에 있지 않다면?
-                MapState.nearAudioGuideEnabled = false
-                putDataToService() //음악 데이터 보냄.
-                Log.d("OND TEST","Near Audio Guide isn't Exist!!")
+            if(!PlayBackState.chkIsPlay){ //재생중이지 않아
+                Log.d("오디오 테스트 ", "재생중이지 않아서 위치 호출")
+                if (it.isAudioTrackNearBy) { //주변에 오디오가 있다면?
+                    val test = it.isAudioTrackNearBy
+                    val testId = it.nearestTrackInfo.audioTrackId
+                    Log.d("오디오 테스트 옵저빙 ","$test $testId")
+                    Log.d("오디오 테스트 옵저빙 ","가져온 아이디 : $testId")
+                    Log.d("오디오 테스트 옵저빙 ","저장 아이디 : ${MapState.PLAYING_NUM}")
+                    drawMarker()
+
+                    clickedMarker(it.userPresentLatitude, it.userPresentLongitude, it.nearestTrackInfo.audioTrackId)
+
+                    if (MapState.PLAYING_NUM == testId){
+                        Log.d("오디오 테스트 옵저빙 ","이전 재생 했던 곡이라 재생을 안할게요")
+                    }else{
+                        nearAudioList.clear() //초기화 하고
+                        nearAudioList.add(it.nearestTrackInfo) //데이터 넣어줌
+                        nearAduioIntent.putParcelableArrayListExtra(PARAM_MUSIC_LIST_BY_LOCATION, nearAudioList)
+                        putDataToService() //startService 콜
+                    }
+                    MapState.PLAYING_NUM = it.nearestTrackInfo.audioTrackId //현재 재생 중인 아이디.
+                }
             }
+
         })
     }
 
     private fun putDataToService(){
         trackAudioIntent.putParcelableArrayListExtra(PARAM_MUSIC_LIST_BY_TRACK, trackAudioList)
-        if (!MapState.locationEnabled){ //위치 추적 꺼져있다면 무조건 트랙 노래를 서비스에 보냄.
+
+
+        if (!MapState.locationEnabled){  // 위치 추적 꺼져있다면
+            Log.d("오디오 Test : ","위치 추적 OFF")
+            MapState.nearAudioGuideEnabled = false // 트랙 기반 재생
+            MapState.IS_NOW_NEAR_AUDIO_PLAY = false // 현재 재생 : 트랙 기반
             context?.startService(trackAudioIntent)
-        } else{ //위치 추적 켜져있다면
-            if (chkIsPlaying()){ //재생중인 음악 있다면
-                if (MapState.nearAudioGuideEnabled){ //주변에 오디오가이드 있다면?
-                    stop() //일단 현재 음악 끄고
-                    context?.stopService(trackAudioIntent)
-                    context?.startService(nearAduioIntent) //데이터 보내서 다시 키자.
-                    //음악 다시 트는 코드
-                }
-            }else{ //재생중인 음악 없다면
-                if (MapState.nearAudioGuideEnabled){ //주변에 오디오가이드 있다면?
-                    context?.startService(nearAduioIntent)
-                }
-            }
+
+        } else if (MapState.locationEnabled){ //위치 추적 켜져있다면
+            Log.d("오디오 Test : ","위치 추적 ON")
+
+            MapState.IS_NOW_NEAR_AUDIO_PLAY = true //-> 현재 재생 : 위치 기반
+            context?.startService(nearAduioIntent)
+            updateVPposition()
         }
+    }
+
+    private fun updateVPposition(){
+        view_nowplay.visibility = View.VISIBLE
+        val mLayoutParams : CoordinatorLayout.LayoutParams = vp.layoutParams as CoordinatorLayout.LayoutParams
+        mLayoutParams.bottomMargin = 150
+        vp.layoutParams = mLayoutParams
     }
 
     private fun drawMarker(){
@@ -322,33 +350,54 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             marker = Marker()
             marker.let {
                 it.position = LatLng(item.trackLatitude, item.trackLongitude)
-                val name = "marker_${item.trackOrderNumber}"
-                Log.d("TON ", name)
+                val name = "mark_${item.trackOrderNumber}"
                 val drawRes = this.resources.getIdentifier(name, "drawable", requireContext().packageName)
                 it.icon = OverlayImage.fromResource(drawRes)
                 it.tag = item.trackOrderNumber
-                it.onClickListener(this, marker.position)
+                it.onClickListener(this, marker.position, item.trackOrderNumber)
                 it.map = map
             }
         }
     }
 
+    private fun clickedMarker(latitude :Double, longitude :Double, position: Int){
+        Log.d("마커 테스트 @@", " $position 빨간색 칠해")
+        marker = Marker()
+        marker.position = LatLng(latitude, longitude)
+        val name = "mark_"+position+"_selected"
+        val drawRes = this.resources.getIdentifier(name, "drawable", requireContext().packageName)
+        marker.icon = OverlayImage.fromResource(drawRes)
+        marker.map = map
+    }
 
-    private operator fun Overlay.OnClickListener?.invoke(mapsFragment: MapsFragment, markerPosition : LatLng) {
+    private operator fun Overlay.OnClickListener?.invoke(mapsFragment: MapsFragment, markerPosition : LatLng, num : Int) {
         mapsFragment.marker.setOnClickListener {
-            //map.moveCamera(CameraUpdate.scrollTo(markerPosition))
             if (!vp.isShown){ vp.visibility = View.VISIBLE }
             vp.currentItem = (it.tag) as Int -1
+            clickedMarker(markerPosition.latitude, markerPosition.longitude, num) //마커 색 바꾸기
             return@setOnClickListener true
         }
     }
 
-    fun clickListener(position : Int){
+    //ViewPager item별 onClick
+    fun clickListener(position : Int, lati :Double, longi :Double){
+        clickedMarker(lati,longi,position+1)
+        fab.setImageResource(R.drawable.ic_my_loc)
+        MapState.PLAYING_NUM = -1
+        disableLocation()
+        MapState.IS_NOW_NEAR_AUDIO_PLAY = false
+
+        if(PlayBackState.chkIsPlay) { //재생중
+            hideNowPlayView()
+            handler.removeCallbacks(updater)
+            context?.stopService(nearAduioIntent)
+            optMusic(MusicState.ACTION_LOCATION_BASE_PLAY_STOP)
+        }
+        putDataToService() //viewpager item on click 모드 체인지.
+        context!!.sendBroadcast(Intent(MusicState.ACTION_TRACK_BASE_PLAY).putExtra("position",position))
+        updateVPposition()
         Log.d("PLAY AUDIO ", "$position Clicked!!")
-        view_nowplay.visibility = View.VISIBLE
-        val mLayoutParams : CoordinatorLayout.LayoutParams = vp.layoutParams as CoordinatorLayout.LayoutParams
-        mLayoutParams.bottomMargin = 150
-        vp.layoutParams = mLayoutParams
+
     }
 
 
@@ -365,7 +414,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             }
             return
         }
-
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
@@ -385,8 +433,13 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         drawPolyLine()
 
         fab.setOnClickListener {
+
+            if (musicStatus == MusicChangedStatus.PAUSE){
+                PlayBackState.mIsMusicPause = false
+            }
             if (MapState.trackingEnabled){
                 disableLocation()
+                putDataToService() //위치 추적 꺼짐을 알려줘
                 fab.setImageResource(R.drawable.ic_my_loc)
             }else{
                 fab.setImageDrawable(CircularProgressDrawable(requireContext()).apply {
@@ -401,6 +454,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
         map.setOnMapClickListener { pointF, latLng ->
             if (vp.isShown){ vp.visibility = View.GONE }
+            drawMarker()
         }
     }
 
@@ -435,7 +489,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                     val locationRequest = LocationRequest().apply {
                         priority = LocationRequest.PRIORITY_HIGH_ACCURACY
                         interval = MapState.LOCATION_REQUEST_INTERVAL.toLong()
-                        fastestInterval = MapState.LOCATION_REQUEST_INTERVAL.toLong()
                     }
                     LocationServices.getFusedLocationProviderClient(requireContext())
                         .requestLocationUpdates(locationRequest, locationCallback, null)
@@ -452,21 +505,30 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun disableLocation() {
-        if (!MapState.locationEnabled) {
-            return
-        }
-        LocationServices.getFusedLocationProviderClient(requireContext()).removeLocationUpdates(
-            locationCallback
-        )
+        if (!MapState.locationEnabled) { return }
+        LocationServices.getFusedLocationProviderClient(requireContext()).removeLocationUpdates(locationCallback)
         MapState.locationEnabled = false
         updateFAB()
     }
 
     private fun updateFAB(){
-        if (MapState.trackingEnabled){
+        if (MapState.trackingEnabled){  //위치 추적 안함.
             fab.setImageResource(R.drawable.ic_my_loc)
+            hideNowPlayView()
+            handler.removeCallbacks(updater)
+            context?.stopService(nearAduioIntent)
+            optMusic(MusicState.ACTION_LOCATION_BASE_PLAY_STOP)
+            MapState.PLAYING_NUM = -1
+
         }else{
             fab.setImageResource(R.drawable.ic_baseline_location_disabled_24)
+            hideNowPlayView()
+            handler.removeCallbacks(updater)
+            context?.stopService(nearAduioIntent)
+            optMusic(MusicState.ACTION_LOCATION_BASE_PLAY_STOP)
+            MapState.PLAYING_NUM = -1
+            vp.visibility = View.GONE
+            //위치추적중 위치 기반 재생
         }
     }
 
@@ -493,12 +555,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         musicStatus = MusicChangedStatus.PLAY
     }
 
-    private fun stop() {
-        optMusic(MusicState.ACTION_MUSIC_STOP)
-        handler.removeCallbacks(updater)
-        musicStatus = MusicChangedStatus.STOP
-    }
-
     private fun optMusic(action: String) {
         context!!.sendBroadcast(Intent(action))
     }
@@ -510,9 +566,13 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         tv_audioPlaytime.text = "$nowPlayTime / $totalPlayTime"
     }
 
+    fun hideNowPlayView(){
+        if (view_nowplay.isShown){ view_nowplay.visibility = View.GONE }
+    }
+
     private fun updateSeekBar(){
-        sb_audioPlay.progress = ( (musicPlayer?.currentPosition!! * 100) / musicPlayer?.duration!!)
-        handler.postDelayed(updater, 1000)
+            sb_audioPlay.progress = ( (musicPlayer?.currentPosition!! * 100) / musicPlayer?.duration!!)
+            handler.postDelayed(updater, 1000)
     }
 
     @SuppressLint("SetTextI18n")
@@ -570,6 +630,19 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 val title1 = intent.getStringExtra(MusicState.MUSIC_INFO_TRACK_TITLE) //이게 더 큰거
                 val title2 = intent.getStringExtra(MusicState.MUSIC_INFO_AUDIO_TITLE)
                 updateTitle(title1, title2)
+
+            } else if (action == MusicState.ACTION_STATUS_MUSIC_COMPLETE){ //트랙 종료되면
+                //하나 재생 하고 멈춤
+                if (!MapState.locationEnabled) {  // 위치 추적 꺼져있다면
+                    //트랙에 따른 재생.
+                    hideNowPlayView()
+                    handler.removeCallbacks(updater)
+                    context.stopService(trackAudioIntent)
+                }else if (MapState.locationEnabled){ //위치 추적 켜져있다면
+                    hideNowPlayView()
+                    handler.removeCallbacks(updater)
+                    context.stopService(nearAduioIntent)
+                }
             }
         }
     }

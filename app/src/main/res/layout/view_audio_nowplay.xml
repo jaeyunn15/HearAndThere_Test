@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
     android:background="#ffffff"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
@@ -23,19 +23,19 @@
         android:layout_height="wrap_content"
         app:layout_constraintTop_toBottomOf="@id/sb_audio_play"
         app:layout_constraintStart_toStartOf="parent"
-        android:text="Mangwon-dong introduction 1"
         android:textSize="12sp"
         android:lineHeight="15.9sp"
         android:textColor="#373737"
         android:layout_marginTop="6dp"
         android:layout_marginStart="16dp"
+        tools:text="Mangwon-dong introduction 1"
         />
 
     <TextView
         android:id="@+id/tv_now_play_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="05:20 / 08:00"
+        tools:text="05:20 / 08:00"
         android:textSize="12sp"
         android:lineHeight="15.9sp"
         android:textColor="#3e8ff3"
