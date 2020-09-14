@@ -20,18 +20,18 @@
         android:id="@+id/fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/ic_my_loc"
+
         android:src="@drawable/ic_my_loc"
         android:backgroundTint="@color/white"
         android:layout_margin="20dp"
         app:layout_dodgeInsetEdges="bottom"
         app:layout_anchor="@id/maps_frag_view"
-        app:layout_anchorGravity="bottom|start"
+        app:layout_anchorGravity="bottom|end"
         />
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/vp_mapfragment_audioInfo"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="185dp"
         android:layout_gravity="bottom|center"
         app:layout_insetEdge="bottom"

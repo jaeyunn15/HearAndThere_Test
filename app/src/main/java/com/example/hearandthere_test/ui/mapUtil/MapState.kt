@@ -1,10 +1,10 @@
 package com.example.hearandthere_test.ui.mapUtil
 
 object MapState {
-    const val LOCATION_REQUEST_INTERVAL = 10000
+    const val LOCATION_REQUEST_INTERVAL = 4000
     const val PERMISSION_REQUEST_CODE = 100
 
-    var trackingEnabled: Boolean = true //위치 추적의 유
+    var trackingEnabled: Boolean = true //위치 추적의 유무
     var nearAudioGuideEnabled: Boolean = false
     var locationEnabled: Boolean = false
     var waiting: Boolean = false

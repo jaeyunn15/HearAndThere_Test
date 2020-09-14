@@ -1,5 +1,6 @@
 package com.example.hearandthere_test.network.remote.api
 
+import com.example.hearandthere_test.model.response.ResAudioGuideDirectionsDto
 import com.example.hearandthere_test.model.response.ResAudioGuideListDto
 import com.example.hearandthere_test.model.response.ResNearestAudioTrackDto
 import com.example.hearandthere_test.model.response.ResAudioTrackInfoListDto
@@ -18,6 +19,11 @@ interface AudioGuideRepoApi {
     fun getAudioTracks(
         @Path("audio-guide-id") audio_guide_id : Int
     ) : Single<ResAudioTrackInfoListDto>
+
+    @GET("audio-guides/{audio-guide-id}/directions")
+    fun getAudioDirections(
+        @Path("audio-guide-id") audio_guide_id : Int
+    ) : Single<ResAudioGuideDirectionsDto>
 
     @GET("audio-guides/{audio-guide-id}/location-based/audio-tracks")
     fun getAudioTracksByLocation(

@@ -1,11 +1,15 @@
 package com.example.hearandthere_test
 
-import android.app.Activity
 import android.app.Application
 import android.content.Context
+import androidx.lifecycle.LifecycleObserver
+import androidx.multidex.MultiDexApplication
+import com.example.hearandthere_test.service.AudioService
 import com.example.hearandthere_test.service.AudioServiceInterface
 
-class MyApplication : Application() {
+
+class MyApplication : MultiDexApplication() {
+
 
     override fun onCreate() {
         super.onCreate()
@@ -13,6 +17,7 @@ class MyApplication : Application() {
         context = applicationContext
         serviceInterface = AudioServiceInterface(applicationContext)
     }
+
 
 
     companion object {
