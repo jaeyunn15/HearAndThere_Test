@@ -37,10 +37,12 @@
         </activity>
 
         <service
+            android:name=".service.LocationService"
+            android:enabled="true"/>
+        <service
             android:name=".service.AudioService"
             android:enabled="true"
             android:exported="false" />
-
 
     </application>
 

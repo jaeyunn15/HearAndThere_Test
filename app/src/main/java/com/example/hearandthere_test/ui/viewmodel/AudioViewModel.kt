@@ -22,14 +22,10 @@ class AudioViewModel (
     }
 
     private val _audioResponseLiveData = MutableLiveData<ResAudioTrackInfoListDto>()
-    private val _audioByLocationResponseLiveData = MutableLiveData<ResNearestAudioTrackDto>()
     private val _audioTrackDirectionsLiveData = MutableLiveData<ResAudioGuideDirectionsDto>()
 
     val audioResponseLiveData : LiveData<ResAudioTrackInfoListDto>
         get() = _audioResponseLiveData
-
-    val nearestAudioByLocationResponseLiveData : LiveData<ResNearestAudioTrackDto>
-        get() = _audioByLocationResponseLiveData
 
     val audioTrackDirectionsLiveData : LiveData<ResAudioGuideDirectionsDto>
         get() = _audioTrackDirectionsLiveData
@@ -48,19 +44,6 @@ class AudioViewModel (
         )
     }
 
-    fun getAudioTrackByLocation(GuideId: Int, userLatitude : Double, userLongitude : Double){
-        addDisposable(repository.getTrackListByLocation(GuideId, userLatitude, userLongitude)
-            .subscribe( { it ->
-                it.run {
-                    _audioByLocationResponseLiveData.postValue(this)
-                }
-            },{
-                Log.d("AudioViewModel Location", "response error message : ${it.localizedMessage}")
-            })
-        )
-    }
-
-    @SuppressLint("LongLogTag")
     fun getTrackDirections(GuideId: Int){
         addDisposable(repository.getGuideDirections(GuideId)
             .subscribe( { it ->
@@ -68,7 +51,7 @@ class AudioViewModel (
                     _audioTrackDirectionsLiveData.postValue(this)
                 }
             },{
-                Log.d("AudioViewModel Direction", "response error message : ${it.localizedMessage}")
+                Log.d("AudioViewModel Directs", "response error message : ${it.localizedMessage}")
             })
         )
     }
