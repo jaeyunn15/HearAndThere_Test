@@ -5,5 +5,10 @@
 
 ### mvp테스트를 위한 테스트용 개발.
 
-<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/92937065-d3d4fc80-f485-11ea-8475-7ec0743d3c27.png"><img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/92937041-cd468500-f485-11ea-84a0-b6e77d0953df.png"><img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/92937060-d2a3cf80-f485-11ea-8890-3967fa359650.png">
+|HOME|START|PLAY WITH INFO|
+|------|---|---|
+|<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/93355795-69eb9700-f879-11ea-91a5-ff28b6850eb5.png">|<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/93355762-622bf280-f879-11ea-9b78-c893834c8f51.png">|<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/93355784-6821d380-f879-11ea-8361-79ae47e72cd2.png">|
 
+|TRACE MY LOCATION|LEAVE COMMENTS|ERROR PAGE|
+|------|---|---|
+|<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/93355788-68ba6a00-f879-11ea-9857-e59c4e74bdca.png">|<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/93355801-6b1cc400-f879-11ea-994c-8fab38476ea7.png">|<img width="218" height="400" src="https://user-images.githubusercontent.com/55985789/93355806-6bb55a80-f879-11ea-83de-24ea679b0aec.png">|
