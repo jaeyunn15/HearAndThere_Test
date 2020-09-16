@@ -1,6 +1,7 @@
 package com.example.hearandthere_test.ui.splash
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.hearandthere_test.R
@@ -14,8 +15,12 @@ class SplashActivity : AppCompatActivity() {
 
         btn_goTest.setOnClickListener {
             val nextIntent = Intent(this, MapActivity::class.java)
-            nextIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(nextIntent)
+        }
+
+        btn_SendFeedback.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://forms.gle/SeqEpNvQf6qHGAKR7"))
+            startActivity(intent);
         }
     }
 }

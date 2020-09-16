@@ -6,28 +6,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto
 import com.example.hearandthere_test.util.MapState
 import com.example.hearandthere_test.util.MusicState
 import com.example.hearandthere_test.util.PlayBackState
-
+import kotlinx.coroutines.awaitAll
+import kotlin.concurrent.thread
 
 class AudioService : Service() {
-
-    private var isPrepared = false
-    private var isPlayed = false
-    private var binder: IBinder = AudioServiceBinder()
-    private var trackAudioList = ArrayList<ResAudioTrackInfoItemDto>()
-    private val mMusicReceiver = MusicReceiver()
-    private var MUSIC_URL: String? = null
-    private var mCurrentMusicIndex = 0
-    private var pausePosition: Int? = null
-    lateinit var mPlayer: MediaPlayer
-    private lateinit var trackAudioDatas: ArrayList<ResAudioTrackInfoItemDto>
-    private lateinit var distinctTrackList: MutableList<ResAudioTrackInfoItemDto>
 
     class AudioServiceBinder : Binder() {
         fun getService(): AudioService {
@@ -90,15 +81,21 @@ class AudioService : Service() {
         if (mCurrentMusicIndex == index && PlayBackState.mIsMusicPause) {
             mPlayer.start()
         } else {
-            prepare(index)
-            mCurrentMusicIndex = index
-            PlayBackState.mIsMusicPause = false
+            mPlayer.reset()
+            try {
+                mCurrentMusicIndex = index
+                prepare(mCurrentMusicIndex)
+                sendMusicInfoBroadCast(mCurrentMusicIndex)
+                //sendNowPlayAudioIndex(mCurrentMusicIndex)
+                PlayBackState.mIsMusicPause = false
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
         }
-
+        PlayBackState.MediaPlayers.add(mPlayer)
         PlayBackState.mIsMusicPLayingNow = true //현재 재생 중  (서비스에서 아는)
         PlayBackState.chkIsPlay = true //현재 재생 중 (뷰에서 아는)
         PlayBackState.CHECK_IS_PLAY_AUDIO = true
-        PlayBackState.MediaPlayers.add(mPlayer)
         sendMusicStateBroadcast(MusicState.ACTION_STATUS_MUSIC_PLAY)
     }
 
@@ -106,27 +103,31 @@ class AudioService : Service() {
         try {
             MUSIC_URL = trackAudioList[index].audioFileUrl.toString()
             MUSIC_URL = MUSIC_URL!!.replace(" " , "");
-            Log.d("오디오 유알엘 테스트", MUSIC_URL.toString())
             mPlayer.setDataSource(MUSIC_URL)
             mPlayer.setOnPreparedListener(mPrepareListener)
             mPlayer.prepare()
-
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
             e.printStackTrace()
         }
     }
 
-    private var mPrepareListener: MediaPlayer.OnPreparedListener =
-        MediaPlayer.OnPreparedListener { mp ->
-            mp.start()
-            mp.setOnCompletionListener(listener)
-            val duration: Int = mPlayer.duration
-            val currentPosition: Int = mPlayer.currentPosition
-            sendMusicDurationBroadCast(duration, currentPosition)
-            sendMusicInfoBroadCast(mCurrentMusicIndex)
-            sendNowPlayAudioIndex(mCurrentMusicIndex)
+    private var mPrepareListener: MediaPlayer.OnPreparedListener = MediaPlayer.OnPreparedListener { mp ->
+        mp.start()
+        mp.setOnCompletionListener(listener)
+        mp.setOnErrorListener(errorListener)
+    }
+
+    private var errorListener : MediaPlayer.OnErrorListener = MediaPlayer.OnErrorListener { mediaPlayer, i, i2 ->
+        if (i == -38){
+            Log.d("오디오 에러@@", "-38 치명적인 에러")
+            sendAudioStateError()
         }
 
+        mediaPlayer.stop()
+        mediaPlayer.reset()
+
+        return@OnErrorListener false
+    }
 
     private var listener: MediaPlayer.OnCompletionListener = MediaPlayer.OnCompletionListener {
         PlayBackState.mIsMusicPLayingNow = false //노래 재생 끝
@@ -139,9 +140,8 @@ class AudioService : Service() {
 
     private fun pause() {
         mPlayer.pause()
-        PlayBackState.mIsMusicPause = true
-        PlayBackState.mIsMusicPLayingNow = false
         sendMusicStateBroadcast(MusicState.ACTION_STATUS_MUSIC_PAUSE)
+        PlayBackState.mIsMusicPause = true
     }
 
     private fun stop() {
@@ -153,26 +153,29 @@ class AudioService : Service() {
 
     private fun next() {
         if (mCurrentMusicIndex + 1 < trackAudioList.size) {
-            mPlayer.reset()
-            play(mCurrentMusicIndex+1)
-            PlayBackState.mIsMusicPLayingNow = true
-            PlayBackState.chkIsPlay = true
-            sendMusicInfoBroadCast(mCurrentMusicIndex + 1)
-            sendAudioInfoChange(mCurrentMusicIndex + 1)
+            if (mPlayer.isPlaying){
+                mPlayer.stop()
+            }
+            mCurrentMusicIndex += 1
+            sendAudioInfoChange(mCurrentMusicIndex)
+            play(mCurrentMusicIndex)
+            Log.d("오디오 서비스 다 " ,"$mCurrentMusicIndex")
         }
     }
 
     private fun last() {
         if (mCurrentMusicIndex != 0) {
-            mPlayer.reset()
-            play(mCurrentMusicIndex - 1)
-            PlayBackState.mIsMusicPLayingNow = true
-            PlayBackState.chkIsPlay = true
-            sendMusicInfoBroadCast(mCurrentMusicIndex - 1)
-            sendAudioInfoChange(mCurrentMusicIndex - 1)
+            if (mPlayer.isPlaying){
+                mPlayer.stop()
+            }
+            mCurrentMusicIndex -= 1
+            mPlayer.stop()
+            sendMusicInfoBroadCast(mCurrentMusicIndex)
+            sendAudioInfoChange(mCurrentMusicIndex)
+            play(mCurrentMusicIndex)
+            Log.d("오디오 서비스 이전 " ,"$mCurrentMusicIndex")
         }
     }
-
 
     private fun seekTo(intent: Intent) {
         if (mPlayer.isPlaying) {
@@ -196,11 +199,16 @@ class AudioService : Service() {
         sendBroadcast(intent)
     }
 
-
     private fun sendMusicDurationBroadCast(duration: Int, currentPosition: Int) {
         val intent = Intent(MusicState.ACTION_STATUS_MUSIC_DURATION)
         intent.putExtra(MusicState.PARAM_MUSIC_DURATION, duration)
         intent.putExtra(MusicState.PARAM_MUSIC_CURRENT_POSITION, currentPosition)
+        sendBroadcast(intent)
+    }
+
+    private fun sendAudioStateError() {
+        val intent = Intent(MusicState.ACTION_STATUS_AUDIO_ERROR)
+        Log.d("오디오 에러 테스트", "sendAudioStateError")
         sendBroadcast(intent)
     }
 
@@ -223,6 +231,7 @@ class AudioService : Service() {
     }
 
     private fun sendAudioInfoChange(index: Int){
+        Log.d("오디오 변경 @@", "$index")
         val intent = Intent(MusicState.MUSIC_VP_CHANGE)
         intent.putExtra(MusicState.MUSIC_VP_CHANGE_IDX, index)
         sendBroadcast(intent)
@@ -233,6 +242,8 @@ class AudioService : Service() {
         intent.putExtra(MusicState.NOWPLAY_MUSIC_IDX_VALUE, index)
         sendBroadcast(intent)
     }
+
+
 
     inner class MusicReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -284,4 +295,17 @@ class AudioService : Service() {
         pausePosition = null
         unregisterReceiver(MusicReceiver())
     }
+
+    private var isPrepared = false
+    private var isPlayed = false
+    private var binder: IBinder = AudioServiceBinder()
+    private var trackAudioList = ArrayList<ResAudioTrackInfoItemDto>()
+    private val mMusicReceiver = MusicReceiver()
+    private var MUSIC_URL: String? = null
+    private var mCurrentMusicIndex = 0
+    private var pausePosition: Int? = null
+    private lateinit var mPlayer: MediaPlayer
+    private lateinit var trackAudioDatas: ArrayList<ResAudioTrackInfoItemDto>
+    private lateinit var distinctTrackList: MutableList<ResAudioTrackInfoItemDto>
+
 }

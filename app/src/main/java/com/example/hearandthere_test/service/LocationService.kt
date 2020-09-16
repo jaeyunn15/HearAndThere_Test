@@ -5,7 +5,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 
@@ -13,16 +12,21 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import com.example.hearandthere_test.MyApplication.Companion.context
+import com.example.hearandthere_test.ui.map.MapActivity
+import com.example.hearandthere_test.ui.map.MapsFragment
 import com.example.hearandthere_test.util.MapState
+import com.google.android.gms.common.api.GoogleApiClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.naver.maps.geometry.LatLng
 
 
 open class LocationService : Service() {
-    private var locationManager: LocationManager? = null
-    private var listener: MyLocationListener? = null
     var intent: Intent? = null
+
 
     override fun onCreate() {
         super.onCreate()
@@ -30,9 +34,7 @@ open class LocationService : Service() {
     }
 
     override fun onStart(intent: Intent?, startId: Int) {
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        listener = MyLocationListener()
-        startLocationTrace()
+        enableLocation()
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -41,53 +43,51 @@ open class LocationService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.v("STOP_SERVICE", "DONE")
         MapState.LOCATION_TRACE_ON = false
-        stopLocationTrace()
+        disableLocation()
     }
 
-    fun startLocationTrace(){
-        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-            && ActivityCompat.checkSelfPermission(context!!, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-        {
-            return
-        }
-        locationManager?.requestLocationUpdates(
-            LocationManager.NETWORK_PROVIDER,
-            3,
-            MapState.MIN_DISTANCE,
-            listener as LocationListener
-        )
-//        locationManager?.requestLocationUpdates(
-//            LocationManager.GPS_PROVIDER,
-//            3,
-//            MapState.MIN_DISTANCE,
-//            listener as LocationListener
-//        )
+    private fun enableLocation() {
+        GoogleApiClient.Builder(applicationContext)
+            .addConnectionCallbacks(object : GoogleApiClient.ConnectionCallbacks {
+                override fun onConnected(bundle: Bundle?) {
+                    val locationRequest = LocationRequest().apply {
+                        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+                        interval = 250
+                    }
+                    if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                        && ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        return
+                    }
+                    LocationServices.getFusedLocationProviderClient(applicationContext).requestLocationUpdates(locationRequest, locationCallback, null)
+                }
+
+                override fun onConnectionSuspended(i: Int) {
+                }
+            })
+            .addApi(LocationServices.API)
+            .build()
+            .connect()
         MapState.LOCATION_TRACE_ON = true
     }
 
-    fun stopLocationTrace(){
-        locationManager?.removeUpdates(listener as LocationListener)
+
+    private fun disableLocation() {
+        LocationServices.getFusedLocationProviderClient(applicationContext).removeLocationUpdates(locationCallback)
         MapState.LOCATION_TRACE_ON = false
     }
 
-    inner class MyLocationListener : LocationListener {
-        override fun onLocationChanged(loc: Location) {
-            intent?.putExtra("Latitude", loc.latitude)
-            intent?.putExtra("Longitude", loc.longitude)
-            Log.d("오디오 테스트 위치추적", "${loc.latitude} || ${loc.longitude}")
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult?) {
+            if (locationResult == null) { return }
+            val lastLocation = locationResult.lastLocation
+            val coord = LatLng(lastLocation)
+            intent?.putExtra("Latitude", coord.latitude)
+            intent?.putExtra("Longitude", coord.longitude)
             sendBroadcast(intent)
-        }
-        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-        override fun onProviderDisabled(provider: String?) {
-            Toast.makeText(applicationContext, "Gps Disabled", Toast.LENGTH_SHORT).show()
-            MapState.LOCATION_TRACE_ON = false
-        }
-
-        override fun onProviderEnabled(provider: String?) {
-            Toast.makeText(applicationContext, "Gps Enabled", Toast.LENGTH_SHORT).show()
             MapState.LOCATION_TRACE_ON = true
         }
     }
+
 }

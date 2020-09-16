@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
 import android.media.MediaPlayer
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
@@ -16,6 +15,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.app.ActivityCompat
+import androidx.core.content.PermissionChecker
 import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -28,31 +29,33 @@ import com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto
 import com.example.hearandthere_test.service.AudioService
 import com.example.hearandthere_test.service.LocationService
 import com.example.hearandthere_test.ui.adapter.MapsViewPagerAdapter
-import com.example.hearandthere_test.util.MapState
+import com.example.hearandthere_test.ui.error.ErrorFragment
 import com.example.hearandthere_test.ui.viewmodel.AudioViewModel
-import com.example.hearandthere_test.util.AudioUiHelper
-import com.example.hearandthere_test.util.MusicChangedStatus
-import com.example.hearandthere_test.util.MusicState
+import com.example.hearandthere_test.util.*
 import com.example.hearandthere_test.util.MusicState.PARAM_MUSIC_LIST_BY_TRACK
-import com.example.hearandthere_test.util.PlayBackState
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.MapFragment
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
-import com.naver.maps.map.overlay.*
+import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.Overlay
+import com.naver.maps.map.overlay.OverlayImage
+import com.naver.maps.map.overlay.PolylineOverlay
 import kotlinx.android.synthetic.main.fragment_maps.view.*
-import kotlin.collections.ArrayList
 
-class MapsFragment : Fragment(), OnMapReadyCallback{
+class MapsFragment() : Fragment(), OnMapReadyCallback{
+
+    fun newInstance(): Fragment? {
+        return MapsFragment()
+    }
 
     private var musicPlayer : MediaPlayer? = null
     private var musicStatus: MusicChangedStatus = MusicChangedStatus.STOP
     private lateinit var marker : Marker
-
     private fun chkIsPlaying() : Boolean{
-        var chkResult : Boolean = false
+        var chkResult = false
         for (mediaPlayer in PlayBackState.MediaPlayers) {
             chkResult = mediaPlayer.isPlaying
             if (chkResult){
@@ -97,6 +100,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
     private fun initSetting(){
         fab = fragmentView.findViewById(R.id.fab)
         vp = fragmentView.findViewById(R.id.vp_mapfragment_audioInfo)
+        btn_goBackToSplash = fragmentView.findViewById(R.id.btn_goBackToSplash)
         view_nowplay = fragmentView.findViewById<View>(R.id.view_bottom_now_play)
         btn_PausePlay = view_nowplay.findViewById(R.id.btn_now_play_pause)
         btn_NextAudio = view_nowplay.findViewById(R.id.btn_now_play_skipforward)
@@ -130,7 +134,14 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
         val polyline = PolylineOverlay()
         val polyArrayList : ArrayList<LatLng> = arrayListOf()
         audioViewModel.audioTrackDirectionsLiveData.observe(viewLifecycleOwner, Observer {
-            it.directions.forEach { pData -> polyArrayList.add(LatLng(pData.latitude, pData.longitude)) }
+            it.directions.forEach { pData ->
+                polyArrayList.add(
+                    LatLng(
+                        pData.latitude,
+                        pData.longitude
+                    )
+                )
+            }
             val polyList: List<LatLng> = polyArrayList.toList()
             polyline.coords = polyList
             polyline.color = Color.RED
@@ -156,6 +167,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
                 vp.offscreenPageLimit = 3
                 vp.orientation = ViewPager2.ORIENTATION_HORIZONTAL
                 vp.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+
                 vp.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                     override fun onPageSelected(position: Int) {
                         super.onPageSelected(position)
@@ -196,6 +208,13 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
         }
         btn_NextAudio.setOnClickListener { next() }
         btn_PrevAudio.setOnClickListener { prev() }
+        btn_goBackToSplash.setOnClickListener {
+            (activity as MapActivity).backToMain()
+        }
+        view_nowplay.setOnClickListener {
+            if (vp.isShown){ vp.visibility = View.GONE }
+            else { vp.visibility = View.VISIBLE }
+        }
     }
 
     private fun initMapSetting(){
@@ -207,20 +226,18 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
     }
 
     private fun initMusicReceiver(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val intentFilter = IntentFilter()
-            intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_PLAY)
-            intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_PAUSE)
-            intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_DURATION)
-            intentFilter.addAction(MusicState.MUSIC_INFO)
-            intentFilter.addAction(MusicState.PLAYLIST_UP)
-            intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_COMPLETE)
-            intentFilter.addAction(MusicState.ACTIVITY_REFRESH)
-            intentFilter.addAction(MapState.BR_LOCATION)
-            intentFilter.addAction(MusicState.MUSIC_VP_CHANGE)
-
-            context!!.registerReceiver(MusicReceiver(), intentFilter)
-        }
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_PLAY)
+        intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_PAUSE)
+        intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_DURATION)
+        intentFilter.addAction(MusicState.MUSIC_INFO)
+        intentFilter.addAction(MusicState.PLAYLIST_UP)
+        intentFilter.addAction(MusicState.ACTION_STATUS_MUSIC_COMPLETE)
+        intentFilter.addAction(MusicState.ACTIVITY_REFRESH)
+        intentFilter.addAction(MapState.BR_LOCATION)
+        intentFilter.addAction(MusicState.MUSIC_VP_CHANGE)
+        intentFilter.addAction(MusicState.ACTION_STATUS_AUDIO_ERROR)
+        context!!.registerReceiver(MusicReceiver(), intentFilter)
     }
 
     private fun putDataToService(){
@@ -238,18 +255,22 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
     }
 
     private fun drawMarker(){
-        trackAudioList.forEach { item ->
-            marker = Marker()
-            marker.let {
-                it.position = LatLng(item.trackLatitude, item.trackLongitude)
-                val name = "mark_${item.trackOrderNumber}"
-                val drawRes = this.resources.getIdentifier(name, "drawable", requireContext().packageName)
-                it.icon = OverlayImage.fromResource(drawRes)
-                it.tag = item.trackOrderNumber
-                it.onClickListener(this, marker.position, item.trackOrderNumber)
-                it.map = map
+            trackAudioList.forEach { item ->
+                marker = Marker()
+                marker.let {
+                    it.position = LatLng(item.trackLatitude, item.trackLongitude)
+                    val name = "mark_${item.trackOrderNumber}"
+                    val drawRes = this.resources.getIdentifier(
+                        name,
+                        "drawable",
+                        requireContext().packageName
+                    )
+                    it.icon = OverlayImage.fromResource(drawRes)
+                    it.tag = item.trackOrderNumber
+                    it.onClickListener(this, marker.position, item.trackOrderNumber)
+                    it.map = map
+                }
             }
-        }
     }
 
     private fun clickedMarker(latitude: Double, longitude: Double, position: Int){
@@ -279,8 +300,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
     //ViewPager item별 onClick
     fun clickListener(position: Int, lati: Double, longi: Double){
         clickedMarker(lati, longi, position + 1)
-        fab.setImageResource(R.drawable.ic_my_loc)
-        MapState.PLAYING_NUM = -1
         MapState.IS_NOW_NEAR_AUDIO_PLAY = false
 
         if(PlayBackState.chkIsPlay) { //재생중
@@ -302,11 +321,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
 
     }
 
-    override fun onStart() {
-        super.onStart()
-        context?.startService(locationServiceIntent)
-    }
-
     override fun onDestroy() {
         context?.stopService(locationServiceIntent)
         super.onDestroy()
@@ -315,7 +329,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
 
     private fun firstStartCameraPosition(){
         val coord = LatLng(37.58093, 126.984838)
-        map.moveCamera(CameraUpdate.scrollTo(coord))
+        map.moveCamera(CameraUpdate.scrollAndZoomTo(coord, 15.0))
     }
 
     override fun onMapReady(naverMap: NaverMap) {
@@ -331,15 +345,17 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
     }
 
     private fun mapAttachClickListener(){
-        val locationService = LocationService()
         fab.setOnClickListener {
             if (MapState.LOCATION_TRACE_ON){
                 Log.d("오디오 테스트 ", "현재 위치추적 켜져있어서 끔")
-                locationService.stopLocationTrace()
+                context?.stopService(locationServiceIntent)
+                fab.setImageResource(R.drawable.ic_my_loc)
 
             }else if (!MapState.LOCATION_TRACE_ON){
                 Log.d("오디오 테스트 ", "현재 위치추적 꺼져있어서 킴")
-                locationService.startLocationTrace()
+                context?.startService(locationServiceIntent)
+                fab.setImageResource(R.drawable.ic_baseline_location_disabled_24)
+
             }
         }
         map.setOnMapClickListener { _, _ ->
@@ -390,8 +406,11 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
         if (musicPlayer?.currentPosition == null || musicPlayer?.duration == null){
             //pass
         }else{
-            sb_audioPlay.progress = ( (musicPlayer?.currentPosition!! * 100) / musicPlayer?.duration!!)
-            handler.postDelayed(updater, 1000)
+            val t = Thread {
+                sb_audioPlay.progress = ( (musicPlayer?.currentPosition!! * 100) / musicPlayer?.duration!!)
+                handler.postDelayed(updater, 1000)
+            }
+            t.start()
         }
     }
 
@@ -401,7 +420,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
             updateSeekBar()
             val now = audioUiHelper.milliSecondsToTimer(musicPlayer?.currentPosition!!)
             val total = audioUiHelper.milliSecondsToTimer(musicPlayer?.duration!!)
-            tv_audioPlaytime.text = now+" / "+total
+            tv_audioPlaytime.text = "$now / $total"
         }
     }
 
@@ -409,14 +428,18 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
         tv_audioTitle.text = trackTitle
     }
 
+    private fun sendErrorPage(){
+        context?.stopService(trackAudioIntent)
+        (activity as MapActivity).replaceFragment(ErrorFragment.newInstance()!!)
+
+    }
+
     inner class MusicReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val action = intent.action
-
             if (action == MusicState.ACTION_STATUS_MUSIC_PLAY) {
                 btn_PausePlay.setImageResource(R.drawable.pause)
                 val duration = intent.getIntExtra(MusicState.PARAM_MUSIC_DURATION, 0)
-
                 if (duration != 0) {
                     for (mediaPlayer in PlayBackState.MediaPlayers) {
                         if (mediaPlayer.isPlaying) {
@@ -459,12 +482,16 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
                 }
             } else if (action == MapState.BR_LOCATION){
                 val lati = intent.getDoubleExtra("Latitude", 0.0)
-                val longi = intent.getDoubleExtra("Longitude",0.0)
+                val longi = intent.getDoubleExtra("Longitude", 0.0)
                 setMap(lati, longi)
-                Log.d("오디오 브로드 @@","$lati $longi")
+
             } else if (action == MusicState.MUSIC_VP_CHANGE){
                 val idx = intent.getIntExtra(MusicState.MUSIC_VP_CHANGE_IDX, 0) //이게 더 큰거
-                vp.currentItem = idx-1
+                val a = idx
+                vp.currentItem = a
+
+            } else if (action == MusicState.ACTION_STATUS_AUDIO_ERROR){
+                sendErrorPage()
             }
         }
     }
@@ -475,6 +502,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
         private lateinit var vp : ViewPager2
         private lateinit var fragmentView : View
         private lateinit var view_nowplay : View
+        private lateinit var btn_goBackToSplash : Button
         private lateinit var btn_PausePlay : ImageView
         private lateinit var btn_NextAudio : Button
         private lateinit var btn_PrevAudio : Button
@@ -488,5 +516,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback{
         private lateinit var mapsContentAdapter : MapsViewPagerAdapter
         private lateinit var handler : Handler
         private lateinit var audioUiHelper: AudioUiHelper
+
     }
 }

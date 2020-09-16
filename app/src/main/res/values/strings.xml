@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">HearAndThere</string>
-    <string name="splash_info">오디오에 대한 외부 유출 및 배포를 금지합니다. \n 모든 오디오에 대한 저작권은 team-mic에 있습니다.</string>
+    <string name="splash_info">Reproduction and distribution of this audio in any form is forbidden.\nCopyright ⓒ 2020 team-mic All Rights Reserved</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 
 </resources>
