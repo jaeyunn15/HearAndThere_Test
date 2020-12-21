@@ -7,12 +7,12 @@
 |종류|사용 스펙|
 |------|---|
 |아키텍쳐(Architecture)| MVVM|
-|디자인 패턴(Design Pattern)| Repository Pattern|
-|네트워크(Network)| OkHttp, Retrofit2|
+|네트워크(Network)| OkHttp3, Retrofit2|
 |이미지 처리(Image Loading)| Glide|
+|비동기처리(Async)|  RxJava2|
 |뷰(View)| ViewPager2|
 |JetPack| ViewModel, Databinding, LiveData|
-|비동기처리(Async)|  RxJava|
+
 
 ### mvp테스트를 위한 테스트용 개발.
 ![hereandthere](https://user-images.githubusercontent.com/55985789/99184270-fdabe780-2784-11eb-8823-fb0361f5bdab.png)
