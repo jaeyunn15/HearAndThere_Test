@@ -16,7 +16,7 @@ import com.example.hearandthere_test.util.PlayBackState
 
 class AudioService : Service() {
 
-    class AudioServiceBinder : Binder() {
+    inner class AudioServiceBinder : Binder() {
         fun getService(): AudioService {
             return AudioService()
         }
@@ -87,7 +87,7 @@ class AudioService : Service() {
 
     private fun prepare(index: Int) {
         try {
-            MUSIC_URL = trackAudioList[index].audioFileUrl.toString()
+            MUSIC_URL = trackAudioList[index].audioFileUrl
             MUSIC_URL = MUSIC_URL!!.replace(" " , "");
             mPlayer.setDataSource(MUSIC_URL)
             mPlayer.setOnPreparedListener(mPrepareListener)
@@ -98,16 +98,17 @@ class AudioService : Service() {
     }
 
     private var mPrepareListener: MediaPlayer.OnPreparedListener = MediaPlayer.OnPreparedListener { mp ->
-        mp.start()
-        mp.setOnCompletionListener(listener)
-        mp.setOnErrorListener(errorListener)
+        Thread{
+            run {
+                mp.start()
+                mp.setOnCompletionListener(listener)
+                mp.setOnErrorListener(errorListener)
+            }
+        }.start()
     }
 
-    private var errorListener : MediaPlayer.OnErrorListener = MediaPlayer.OnErrorListener { mediaPlayer, i, i2 ->
-        if (i == -38){
-            sendAudioStateError()
-        }
-
+    private var errorListener : MediaPlayer.OnErrorListener = MediaPlayer.OnErrorListener { mediaPlayer, i, _ ->
+        if (i == -38){ sendAudioStateError() }
         mediaPlayer.stop()
         mediaPlayer.reset()
 
@@ -275,7 +276,11 @@ class AudioService : Service() {
         unregisterReceiver(MusicReceiver())
     }
 
-    lateinit var mPlayer: MediaPlayer
+    lateinit var mPlayer :MediaPlayer
+
+    companion object{
+        //var mPlayer = MediaPlayer()
+    }
 
     private var isPrepared = false
     private var isPlayed = false
