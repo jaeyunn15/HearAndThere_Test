@@ -6,9 +6,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,6 +32,7 @@ import com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto
 import com.example.hearandthere_test.model.response.ResDirectionDto
 import com.example.hearandthere_test.model.response.ResTrackPointDto
 import com.example.hearandthere_test.service.AudioService
+import com.example.hearandthere_test.service.AudioServiceInterface
 import com.example.hearandthere_test.service.LocationService
 import com.example.hearandthere_test.ui.adapter.MapsViewPagerAdapter
 import com.example.hearandthere_test.ui.error.ErrorFragment
@@ -49,6 +52,7 @@ import com.naver.maps.map.overlay.PolylineOverlay
 class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private val mPlayer = InjectionSingleton.getInstance()
+    //lateinit var mPlayer : MediaPlayer
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -61,6 +65,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun initSetting(){
+//        mPlayer = AudioService.mPlayer
         if (mPlayer.isPlaying){
             updateMusicDurationInfo(mPlayer.duration, mPlayer.currentPosition)
             updateSeekBar()
@@ -167,7 +172,6 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
             directionsList = it.directions as ArrayList<ResDirectionDto>
             trackPointList = it.trackPoints as ArrayList<ResTrackPointDto>
             mapsContentAdapter = MapsViewPagerAdapter(this, it.trackPoints, trackAudioList)
-
             it.directions.forEach { pData ->
                 polyArrayList.add(
                     LatLng(
@@ -252,6 +256,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
         num: Int
     ) {
         mapsFragment.marker.setOnClickListener {
+            Log.d("플레이어 상태 :: ", mPlayer.isPlaying.toString())
             if (!binding.vpMapfragmentAudioInfo.isShown){ binding.vpMapfragmentAudioInfo.visibility = View.VISIBLE }
             binding.vpMapfragmentAudioInfo.currentItem = (it.tag) as Int -1
             clickedMarker(markerPosition.latitude, markerPosition.longitude, num) //change marker color
@@ -325,7 +330,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun updateSeekBar(){
         Thread {
-            sb_audioPlay.progress = ( (mPlayer.currentPosition * 100) / mPlayer.duration)
+            sb_audioPlay.progress = ( (mPlayer?.currentPosition?.times(100)) / mPlayer?.duration)
             handler.postDelayed(updater, 1000)
         }.start()
     }

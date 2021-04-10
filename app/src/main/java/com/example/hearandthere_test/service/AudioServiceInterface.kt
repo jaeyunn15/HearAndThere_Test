@@ -8,7 +8,7 @@ import android.os.IBinder
 import android.util.Log
 
 class AudioServiceInterface (context: Context) {
-    var mService : AudioService? = null
+
 
     init {
         mServiceConnection = object : ServiceConnection {
@@ -16,7 +16,7 @@ class AudioServiceInterface (context: Context) {
                 mService = (service as AudioService.AudioServiceBinder).getService()
             }
             override fun onServiceDisconnected(name: ComponentName) {
-                mService = null
+                //mService = null
             }
         }
         context.bindService(
@@ -27,6 +27,6 @@ class AudioServiceInterface (context: Context) {
 
     companion object{
         lateinit var mServiceConnection: ServiceConnection
-
+        lateinit var mService : AudioService
     }
 }
