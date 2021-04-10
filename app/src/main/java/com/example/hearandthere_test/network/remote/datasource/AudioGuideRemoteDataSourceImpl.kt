@@ -1,9 +1,6 @@
 package com.example.hearandthere_test.network.remote.datasource
 
-import com.example.hearandthere_test.model.response.ResAudioGuideDirectionsDto
-import com.example.hearandthere_test.model.response.ResAudioGuideListDto
-import com.example.hearandthere_test.model.response.ResNearestAudioTrackDto
-import com.example.hearandthere_test.model.response.ResAudioTrackInfoListDto
+import com.example.hearandthere_test.model.response.*
 import com.example.hearandthere_test.network.remote.api.AudioGuideRepoApi
 
 import io.reactivex.Single
@@ -42,5 +39,16 @@ class AudioGuideRemoteDataSourceImpl(private val AudioGuideRepoApi : AudioGuideR
         )
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
+    }
+
+    override fun getDetailAudioGuide(
+        audioGuideId: Int,
+        lan: String
+    ): Single<ResSingleAudioGuideDetailDto> {
+        return AudioGuideRepoApi.getDetailAudioGuides(audioGuideId, lan)
+    }
+
+    override fun getDetailAudioGuidePolyline(audioGuideId: Int): Single<ResAudioGuideDirectionsDto> {
+        return AudioGuideRepoApi.getDetailAudioGuidePolyline(audioGuideId)
     }
 }

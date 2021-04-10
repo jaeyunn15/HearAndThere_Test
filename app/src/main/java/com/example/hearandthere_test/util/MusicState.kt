@@ -32,7 +32,6 @@ object MusicState {
     const val MUSIC_INFO = "MUSIC_INFO"
 
     const val MUSIC_INFO_TRACK_TITLE = "MUSIC_INFO_TRACK_TITLE"
-    const val MUSIC_INFO_AUDIO_TITLE = "MUSIC_INFO_AUDIO_TITLE"
 
     const val MUSIC_VP_CHANGE = "MUSIC_VP_CHANGE"
     const val MUSIC_VP_CHANGE_IDX = "MUSIC_VP_CHANGE_IDX"

@@ -23,6 +23,4 @@ object Injection {
         val repository : AudioGuideRepo = AudioGuideRepoImpl(audioDataSource)
         return ViewModelProvider(ViewModelStore(), ViewModelFactory(repository)).get(AudioViewModel::class.java)
     }
-
-
 }

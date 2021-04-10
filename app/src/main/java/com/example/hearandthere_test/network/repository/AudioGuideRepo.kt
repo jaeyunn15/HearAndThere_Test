@@ -1,9 +1,6 @@
 package com.example.hearandthere_test.network.repository
 
-import com.example.hearandthere_test.model.response.ResAudioGuideDirectionsDto
-import com.example.hearandthere_test.model.response.ResAudioGuideListDto
-import com.example.hearandthere_test.model.response.ResNearestAudioTrackDto
-import com.example.hearandthere_test.model.response.ResAudioTrackInfoListDto
+import com.example.hearandthere_test.model.response.*
 import io.reactivex.Single
 
 interface AudioGuideRepo {
@@ -15,4 +12,6 @@ interface AudioGuideRepo {
     fun delete()
     fun getOneAudioGuideByAudioGuideId(GuideID : Int) : Single<ResAudioTrackInfoListDto>
 
+    fun getDetailAudioGuide(audioGuideId: Int, lan : String) : Single<ResSingleAudioGuideDetailDto>
+    fun getDetailAudioGuidePolyline(audioGuideId: Int) : Single<ResAudioGuideDirectionsDto>
 }

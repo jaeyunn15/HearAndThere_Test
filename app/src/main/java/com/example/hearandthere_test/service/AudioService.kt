@@ -6,17 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Binder
 import android.os.IBinder
-import android.util.Log
-import android.widget.Toast
+import com.example.hearandthere_test.injection.InjectionSingleton
 import com.example.hearandthere_test.model.response.ResAudioTrackInfoItemDto
 import com.example.hearandthere_test.util.MapState
 import com.example.hearandthere_test.util.MusicState
 import com.example.hearandthere_test.util.PlayBackState
-import kotlinx.coroutines.awaitAll
-import kotlin.concurrent.thread
 
 class AudioService : Service() {
 
@@ -32,7 +28,7 @@ class AudioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        mPlayer = MediaPlayer()
+        mPlayer = InjectionSingleton.getInstance()
         initBoardCastReceiver()
     }
 
@@ -60,21 +56,12 @@ class AudioService : Service() {
 
     private fun initMusicDatas(intent: Intent) {
         if (!MapState.IS_NOW_NEAR_AUDIO_PLAY) { // 현재 재생 : 트랙재생
-            Log.d("오디오 테스트!!", "트랙 기반 재생!!")
             trackAudioDatas = intent.getParcelableArrayListExtra(MusicState.PARAM_MUSIC_LIST_BY_TRACK)
-            if (trackAudioList.isEmpty()) { //현재 들어있는 데이터가 있다면?
+            if (trackAudioList.isEmpty()) {
                 trackAudioList.addAll(trackAudioDatas) //중복되지 않는 오디오 데이터 넣음
             }
         }
     }
-
-    override fun onTaskRemoved(rootIntent: Intent) {
-        stopSelf()
-        isPlayed = false
-        pausePosition = null
-        PlayBackState.MediaPlayers.clear()
-    }
-
 
     private fun play(index: Int) {
         if (index >= trackAudioList.size) { return }
@@ -86,7 +73,6 @@ class AudioService : Service() {
                 mCurrentMusicIndex = index
                 prepare(mCurrentMusicIndex)
                 sendMusicInfoBroadCast(mCurrentMusicIndex)
-                //sendNowPlayAudioIndex(mCurrentMusicIndex)
                 PlayBackState.mIsMusicPause = false
             }catch (e:Exception){
                 e.printStackTrace()
@@ -119,7 +105,6 @@ class AudioService : Service() {
 
     private var errorListener : MediaPlayer.OnErrorListener = MediaPlayer.OnErrorListener { mediaPlayer, i, i2 ->
         if (i == -38){
-            Log.d("오디오 에러@@", "-38 치명적인 에러")
             sendAudioStateError()
         }
 
@@ -159,7 +144,6 @@ class AudioService : Service() {
             mCurrentMusicIndex += 1
             sendAudioInfoChange(mCurrentMusicIndex)
             play(mCurrentMusicIndex)
-            Log.d("오디오 서비스 다 " ,"$mCurrentMusicIndex")
         }
     }
 
@@ -173,7 +157,6 @@ class AudioService : Service() {
             sendMusicInfoBroadCast(mCurrentMusicIndex)
             sendAudioInfoChange(mCurrentMusicIndex)
             play(mCurrentMusicIndex)
-            Log.d("오디오 서비스 이전 " ,"$mCurrentMusicIndex")
         }
     }
 
@@ -186,8 +169,8 @@ class AudioService : Service() {
         }
     }
     private fun stopLocationService() {
-        PlayBackState.mIsMusicPLayingNow = false //노래 재생 끝
-        PlayBackState.chkIsPlay = false //노래 재생 끝
+        PlayBackState.mIsMusicPLayingNow = false
+        PlayBackState.chkIsPlay = false
         PlayBackState.CHECK_IS_PLAY_AUDIO = false
         mCurrentMusicIndex = 0
         mPlayer.reset()
@@ -199,16 +182,8 @@ class AudioService : Service() {
         sendBroadcast(intent)
     }
 
-    private fun sendMusicDurationBroadCast(duration: Int, currentPosition: Int) {
-        val intent = Intent(MusicState.ACTION_STATUS_MUSIC_DURATION)
-        intent.putExtra(MusicState.PARAM_MUSIC_DURATION, duration)
-        intent.putExtra(MusicState.PARAM_MUSIC_CURRENT_POSITION, currentPosition)
-        sendBroadcast(intent)
-    }
-
     private fun sendAudioStateError() {
         val intent = Intent(MusicState.ACTION_STATUS_AUDIO_ERROR)
-        Log.d("오디오 에러 테스트", "sendAudioStateError")
         sendBroadcast(intent)
     }
 
@@ -223,15 +198,12 @@ class AudioService : Service() {
 
     private fun sendMusicInfoBroadCast(index: Int) {
         val intent = Intent(MusicState.MUSIC_INFO)
-        val title = trackAudioList[index].title.toString()
-        val title2 = trackAudioList[index].placeName.toString()
+        val title = trackAudioList[index].title
         intent.putExtra(MusicState.MUSIC_INFO_TRACK_TITLE, title)
-        intent.putExtra(MusicState.MUSIC_INFO_AUDIO_TITLE, title2)
         sendBroadcast(intent)
     }
 
     private fun sendAudioInfoChange(index: Int){
-        Log.d("오디오 변경 @@", "$index")
         val intent = Intent(MusicState.MUSIC_VP_CHANGE)
         intent.putExtra(MusicState.MUSIC_VP_CHANGE_IDX, index)
         sendBroadcast(intent)
@@ -286,6 +258,13 @@ class AudioService : Service() {
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent) {
+        stopSelf()
+        isPlayed = false
+        pausePosition = null
+        PlayBackState.MediaPlayers.clear()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         mPlayer.stop()
@@ -296,6 +275,8 @@ class AudioService : Service() {
         unregisterReceiver(MusicReceiver())
     }
 
+    lateinit var mPlayer: MediaPlayer
+
     private var isPrepared = false
     private var isPlayed = false
     private var binder: IBinder = AudioServiceBinder()
@@ -304,7 +285,6 @@ class AudioService : Service() {
     private var MUSIC_URL: String? = null
     private var mCurrentMusicIndex = 0
     private var pausePosition: Int? = null
-    private lateinit var mPlayer: MediaPlayer
     private lateinit var trackAudioDatas: ArrayList<ResAudioTrackInfoItemDto>
     private lateinit var distinctTrackList: MutableList<ResAudioTrackInfoItemDto>
 

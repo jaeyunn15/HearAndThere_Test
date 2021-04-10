@@ -79,7 +79,7 @@
                 android:textColor="#373737"
                 android:maxLines="2"
                 android:lineSpacingExtra="3.9sp"
-                android:text="@{Item.placeAddress}"
+                android:text="Seoul"
                 app:layout_constraintTop_toBottomOf="@id/tv_maps_audioInfo_title"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"

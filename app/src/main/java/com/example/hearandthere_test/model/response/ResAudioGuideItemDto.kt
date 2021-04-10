@@ -1,11 +1,12 @@
 package com.example.hearandthere_test.model.response
 
-import android.os.Parcel
 import android.os.Parcelable
+import kotlinx.android.parcel.Parcelize
 
-data class ResAudioGuideItemDto(
+@Parcelize
+data class ResAudioGuideItemDto (
     val audioGuideId: Int,
-    val imageUrl: String,
-    val tags: String,
+    val tags: List<String>,
+    val thumbnailImageUrl: String,
     val title: String
-)
+) : Parcelable

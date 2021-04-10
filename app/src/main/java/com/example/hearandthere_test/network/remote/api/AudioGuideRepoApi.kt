@@ -1,9 +1,6 @@
 package com.example.hearandthere_test.network.remote.api
 
-import com.example.hearandthere_test.model.response.ResAudioGuideDirectionsDto
-import com.example.hearandthere_test.model.response.ResAudioGuideListDto
-import com.example.hearandthere_test.model.response.ResNearestAudioTrackDto
-import com.example.hearandthere_test.model.response.ResAudioTrackInfoListDto
+import com.example.hearandthere_test.model.response.*
 import io.reactivex.Single
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -32,4 +29,14 @@ interface AudioGuideRepoApi {
         @Query("user-longitude") user_longitude : Double
     ) : Single<ResNearestAudioTrackDto>
 
+    @GET("v1/audio-guides/{audio-guide-id}")
+    fun getDetailAudioGuides(
+        @Path("audio-guide-id") audio_guide_id : Int,
+        @Query("lan")lan:String
+    ) : Single<ResSingleAudioGuideDetailDto>
+
+    @GET("v1/audio-guides/{audio-guide-id}/directions")
+    fun getDetailAudioGuidePolyline(
+        @Path("audio-guide-id") audio_guide_id : Int
+    ) : Single<ResAudioGuideDirectionsDto>
 }
