@@ -2,15 +2,22 @@ package com.example.hearandthere_test.injection
 
 import android.media.MediaPlayer
 
-class InjectionSingleton private constructor() {
+object InjectionSingleton {
 
-    companion object {
+    //object 키워드로 싱글톤이 제공. thread-safe 하고 lazy 한 초기화 가능
+    val getInstance: MediaPlayer
+        get() = instance
 
-        @Volatile private var instance: MediaPlayer? = null
+    private val instance : MediaPlayer = MediaPlayer()
 
-        fun getInstance() =
-            instance ?: synchronized(this) {
-                instance ?: MediaPlayer().also { instance = it }
-            }
-    }
+//    companion object {
+//
+//        @Volatile private var instance: MediaPlayer? = null
+//
+//        @JvmStatic fun getInstance() =
+//            instance ?: synchronized(this) {
+//                instance ?: MediaPlayer().also { instance = it }
+//            }
+//    }
+
 }
