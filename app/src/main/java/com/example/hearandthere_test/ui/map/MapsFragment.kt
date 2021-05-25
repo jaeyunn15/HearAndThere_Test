@@ -51,7 +51,7 @@ import com.naver.maps.map.overlay.PolylineOverlay
 
 class MapsFragment : Fragment(), OnMapReadyCallback {
 
-    private val mPlayer = InjectionSingleton.getInstance()
+    private val mPlayer = InjectionSingleton.getInstance
     //lateinit var mPlayer : MediaPlayer
 
     override fun onCreateView(
@@ -292,6 +292,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun play() {
         optMusic(MusicState.ACTION_MUSIC_PLAY)
+        handler.removeCallbacks(updater)
         musicStatus = MusicChangedStatus.PLAY
     }
 
@@ -330,7 +331,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun updateSeekBar(){
         Thread {
-            sb_audioPlay.progress = ( (mPlayer?.currentPosition?.times(100)) / mPlayer?.duration)
+            sb_audioPlay.progress = ( (mPlayer.currentPosition.times(100)) / mPlayer.duration)
             handler.postDelayed(updater, 1000)
         }.start()
     }

@@ -28,7 +28,7 @@ class AudioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        mPlayer = InjectionSingleton.getInstance()
+        mPlayer = InjectionSingleton.getInstance
         initBoardCastReceiver()
     }
 
